@@ -7,7 +7,7 @@ from typing import Any, Protocol
 from .schemas import EmotionInput, EmotionResult
 
 
-EMOTION_LABELS = {"开心", "悲伤", "愤怒", "焦虑", "厌烦", "中性"}
+EMOTION_LABELS = {"开心", "悲伤", "愤怒", "焦虑", "厌烦", "中性", "疲惫", "失落", "无奈"}
 
 SYSTEM_PROMPT = """你是情绪识别系统中的 Emotion Agent。
 
@@ -25,13 +25,17 @@ SYSTEM_PROMPT = """你是情绪识别系统中的 Emotion Agent。
 8. 给出置信度 confidence
 9. 给出简短初步解释 reason
 
-第一版主情绪标签只能从以下 6 类中选择：
+第一版主情绪标签只能从以下 9 类中选择：
 - 开心
 - 悲伤
 - 愤怒
 - 焦虑
 - 厌烦
 - 中性
+- 疲惫
+- 失落
+- 无奈
+
 
 判断规则：
 - emotion 只能输出上述标签之一。

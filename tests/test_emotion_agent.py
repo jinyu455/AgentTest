@@ -108,7 +108,7 @@ class EmotionAgentTestCase(unittest.TestCase):
                 "degree_words": [],
                 "negation_words": [],
                 "contrast_words": [],
-                "emotion": "疲惫",
+                "emotion": "疲倦",
                 "intensity": 55,
                 "confidence": 0.7,
                 "reason": "第一版暂不支持该标签。",
