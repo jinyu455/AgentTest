@@ -40,7 +40,7 @@ SYSTEM_PROMPT = """你是情绪识别系统中的 Mix Agent。
 - is_mixed 为布尔值
 - primary_emotion / secondary_emotion 必须是单个标签
 - mix_ratio 为对象，至少包含 primary_emotion 与 secondary_emotion 两个键
-- mix_ratio 的值为 0 到 1 的小数，整体和接近 1（允许轻微浮动）
+- mix_ratio 的值为 0 到 1 的小数，整体和接近 1（允许轻微浮动，控制在 0.05 以内）
 - revised_intensity 是 0 到 100 的整数
 - confidence 是 0 到 1 的小数
 - reason 用一句中文说明，不超过 100 字
@@ -128,7 +128,7 @@ class MixAgent:
             key = str(emotion).strip()
             if key not in MIX_EMOTION_LABELS:
                 raise ValueError(f"Invalid mix_ratio emotion from LLM: {key!r}")
-            ratio[key] = self._coerce_float(amount, "mix_ratio")
+            ratio[key] = self._coerce_float(amount, "mix_ratio value")
             if ratio[key] < 0 or ratio[key] > 1:
                 raise ValueError(f"Invalid mix_ratio value from LLM: {ratio[key]!r}")
 

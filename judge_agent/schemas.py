@@ -10,6 +10,7 @@ class JudgeInput:
     emotion_result: dict[str, Any]
     sarcasm_result: dict[str, Any] | None = None
     mix_result: dict[str, Any] | None = None
+    text: str | None = None
 
 
 @dataclass(slots=True)

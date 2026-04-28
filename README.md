@@ -1,13 +1,121 @@
 ﻿# EmoAgent Router Agent
 
-当前版本的 `Router Agent` 已改为通过调用大模型进行判断，不再以内置规则作为主逻辑。
+当前版本的 `EmoAgent` 通过调用大模型进行判断。
 
-它的职责仍然只有两件事：
+## 情绪分析服务启动
 
-- 判断输入句子属于 `direct`、`sarcasm_suspected`、`mix` 中的哪一类
-- 决定是否需要继续调用 `Sarcasm Agent` 和 `Mix Agent`
+项目中提供了一个基于 FastAPI 的情绪分析服务，入口文件是 [service/app.py](/d:/PracticalTraining/Agenttest/EmoAgent/service/app.py:1)。服务统一封装了以下几个 Agent：
 
-## 输入格式
+- `Router Agent`
+- `Emotion Agent`
+- `Sarcasm Agent`
+- `Mix Agent`
+- `Judge Agent`
+
+### 1. 启动前准备
+
+服务启动时会优先读取项目根目录 `.env` 中的配置，也支持直接读取系统环境变量。至少需要准备：
+
+```env
+API_KEY=你的大模型服务密钥
+LLM_BASE_URL=https://api.deepseek.com/v1/chat/completions
+LLM_MODEL=deepseek-chat
+```
+
+说明：
+
+- `API_KEY` 必填
+- `LLM_BASE_URL` 和 `LLM_MODEL` 不填时会使用 `service/app.py` 中的默认值
+- 如果 `API_KEY` 缺失，服务会进入 `degraded` 状态，`/health` 会返回 `ready: false`
+
+### 2. 创建并进入虚拟环境
+
+仓库中没有提交 `.venv`。首次拉取项目后，请在项目根目录创建你自己的虚拟环境：
+
+```powershell
+cd d:\PracticalTraining\Agenttest\EmoAgent
+python -m venv .venv
+```
+
+### 3. 激活虚拟环境
+
+在 PowerShell 中执行：
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+如果 PowerShell 因执行策略无法激活，也可以不激活，直接使用虚拟环境里的 Python 或 `uvicorn`，见后文“备用启动方式”。
+
+### 4. 安装依赖
+
+激活虚拟环境后，在项目根目录安装依赖：
+
+```powershell
+pip install -r requirements.txt
+```
+
+### 5. 进入 service 目录并启动服务
+
+激活虚拟环境后执行：
+
+```powershell
+cd service
+uvicorn app:app --reload
+```
+
+启动成功后，默认访问地址为：
+
+```text
+http://127.0.0.1:8000
+```
+
+### 6. 健康检查
+
+服务启动后可以先访问健康检查接口：
+
+```powershell
+curl http://127.0.0.1:8000/health
+```
+
+正常情况下返回：
+
+```json
+{
+  "status": "ok",
+  "ready": true
+}
+```
+
+如果配置缺失，可能返回：
+
+```json
+{
+  "status": "degraded",
+  "ready": false,
+  "reason": "API_KEY not found. Please set it in .env or environment variables."
+}
+```
+
+### 7. 可用接口
+
+当前服务提供以下接口：
+
+- `GET /health`
+- `POST /router`
+- `POST /emotion`
+- `POST /sarcasm`
+- `POST /mix`
+- `POST /judge`
+
+其中：
+
+- `/router`、`/emotion`、`/sarcasm`、`/mix` 接收文本输入
+- `/judge` 接收各上游 Agent 的结构化结果并输出最终裁决
+
+### 8. 文本类接口请求示例
+
+适用于 `/router`、`/emotion`、`/sarcasm`、`/mix`：
 
 ```json
 {
@@ -15,124 +123,71 @@
   "user_id": "u_1001",
   "text": "太好了，周末又能继续改需求了。",
   "source": "chat",
-  "created_at": "2026-03-24T14:00:00"
+  "created_at": "2026-03-24T14:00:00",
+  "metadata": {}
 }
 ```
 
-## 输出格式
+PowerShell 调用示例：
+
+```powershell
+curl -Method Post `
+  -Uri http://127.0.0.1:8000/router `
+  -ContentType "application/json" `
+  -Body '{
+    "id":"msg_001",
+    "user_id":"u_1001",
+    "text":"太好了，周末又能继续改需求了。",
+    "source":"chat",
+    "created_at":"2026-03-24T14:00:00",
+    "metadata":{}
+  }'
+```
+
+### 9. Judge 接口请求示例
+
+`/judge` 需要传入上游 Agent 的结构化结果，即在Body里放入例如：
 
 ```json
 {
-  "sample_type": "sarcasm_suspected",
-  "need_sarcasm_check": true,
-  "need_mix_check": false,
-  "routing_reason": "句子表面正向，但事件语境明显负向，疑似反讽。",
-  "evidence": ["正向词: 太好了", "负向场景: 周末继续改需求"]
+  "text": "太好了，周末又能继续改需求了。",
+  "router_result": {
+    "sample_type": "sarcasm_suspected",
+    "need_sarcasm_check": true,
+    "need_mix_check": false,
+    "routing_reason": "句子表面正向，但事件语境明显负向，疑似反讽。",
+    "evidence": ["正向词: 太好了", "负向场景: 周末继续改需求"]
+  },
+  "emotion_result": {
+    "emotion": "开心",
+    "intensity": 62,
+    "confidence": 0.72,
+    "reason": "文本表面包含明显正向表达。"
+  },
+  "sarcasm_result": {
+    "is_sarcasm": true,
+    "surface_emotion": "开心",
+    "true_emotion": "厌烦",
+    "revised_intensity": 74,
+    "confidence": 0.86,
+    "reason": "正向词与负向工作场景形成反差。"
+  },
+  "mix_result": null
 }
 ```
 
-## 配置占位
+### 10. 备用启动方式
 
-在 [router_agent/client.py](d:/PracticalTraining/Agenttest/EmoAgent/router_agent/client.py) 里保留了占位配置：
+如果你不想激活虚拟环境，可以直接运行虚拟环境中的 `uvicorn`：
 
-- `base_url = "https://your-llm-service.example.com/v1/chat/completions"`
-- `api_key = "YOUR_API_KEY"`
-- `model = "YOUR_MODEL_NAME"`
-
-你后续只需要替换成真实值即可。
-
-## 快速使用
-
-```python
-from router_agent import HTTPRouterLLMClient, LLMConfig, RouterAgent
-
-config = LLMConfig(
-    base_url="https://your-llm-service.example.com/v1/chat/completions",
-    api_key="YOUR_API_KEY",
-    model="YOUR_MODEL_NAME",
-)
-client = HTTPRouterLLMClient(config)
-agent = RouterAgent(client=client)
-
-result = agent.route_dict(
-    {
-        "id": "msg_001",
-        "user_id": "u_1001",
-        "text": "太好了，周末又能继续改需求了。",
-        "source": "chat",
-        "created_at": "2026-03-24T14:00:00",
-    }
-)
+```powershell
+cd d:\PracticalTraining\Agenttest\EmoAgent\service
+..\.venv\Scripts\uvicorn.exe app:app --reload
 ```
 
-## 说明
+也可以直接使用虚拟环境里的 Python：
 
-- `router_agent/llm_agent.py` 负责 Router Agent 的 prompt 和结果校验
-- `router_agent/client.py` 负责通用 HTTP 调用
-- 当前请求体按 OpenAI 兼容风格组织，便于后续替换不同模型服务
-- 单元测试使用 fake client，不依赖真实网络
-
-## Emotion Agent
-
-当前已新增 `Emotion Agent`，用于第一版表层情绪识别。它的职责是：
-
-- 识别主情绪
-- 给出情绪强度分数
-- 输出结构化语言特征
-- 给出初步解释
-
-第一版标签固定为 6 类：
-
-- 开心
-- 悲伤
-- 愤怒
-- 焦虑
-- 厌烦
-- 中性
-
-输出格式：
-
-```json
-{
-  "tokens": ["太好了", "周末", "又", "能", "继续", "改", "需求"],
-  "emotion_words": ["太好了"],
-  "degree_words": [],
-  "negation_words": [],
-  "contrast_words": [],
-  "emotion": "开心",
-  "intensity": 62,
-  "confidence": 0.61,
-  "reason": "文本表面存在明显正向表达“太好了”，情绪方向初步判为正向"
-}
+```powershell
+cd d:\PracticalTraining\Agenttest\EmoAgent\service
+..\.venv\Scripts\python.exe -m uvicorn app:app --reload
 ```
-
-快速使用：
-
-```python
-from emotion_agent import EmotionAgent, HTTPEmotionLLMClient, LLMConfig
-
-config = LLMConfig(
-    base_url="https://your-llm-service.example.com/v1/chat/completions",
-    api_key="YOUR_API_KEY",
-    model="YOUR_MODEL_NAME",
-)
-client = HTTPEmotionLLMClient(config)
-agent = EmotionAgent(client=client)
-
-result = agent.analyze_dict(
-    {
-        "id": "msg_001",
-        "user_id": "u_1001",
-        "text": "太好了，周末又能继续改需求了。",
-        "source": "chat",
-        "created_at": "2026-03-24T14:00:00",
-    }
-)
-```
-
-说明：
-
-- `emotion_agent/llm_agent.py` 负责 Emotion Agent 的 prompt 和结果校验
-- `emotion_agent/client.py` 负责通用 HTTP 调用，占位配置与 Router Agent 保持一致
-- `examples/emotion_demo.py` 可以打印将要发送给大模型的 messages
-- 单元测试使用 fake client，不依赖真实网络

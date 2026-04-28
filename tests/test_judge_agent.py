@@ -3,11 +3,30 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from judge_agent import JudgeAgent
+
+
+class FakeJudgeClient:
+    def __init__(self, result: dict[str, Any] | None = None) -> None:
+        self.calls = 0
+        self.result = result or {
+            "final_emotion": "negative",
+            "secondary_emotion": None,
+            "final_intensity": 76,
+            "final_confidence": 0.82,
+            "is_sarcasm": True,
+            "is_mixed": False,
+            "reason": "mock llm review",
+        }
+
+    def arbitrate(self, payload: Any, rule_result: Any) -> dict[str, Any]:
+        self.calls += 1
+        return self.result
 
 
 class JudgeAgentTestCase(unittest.TestCase):
@@ -18,16 +37,16 @@ class JudgeAgentTestCase(unittest.TestCase):
         payload = {
             "router_result": {"sample_type": "direct"},
             "emotion_result": {
-                "emotion": "焦虑",
+                "emotion": "anxiety",
                 "intensity": 68,
                 "confidence": 0.84,
-                "reason": "直接表达焦虑。",
+                "reason": "direct anxiety signal",
             },
         }
 
         result = self.agent.judge_dict(payload)
 
-        self.assertEqual(result["final_emotion"], "焦虑")
+        self.assertEqual(result["final_emotion"], "anxiety")
         self.assertIsNone(result["secondary_emotion"])
         self.assertEqual(result["final_intensity"], 68)
         self.assertEqual(result["final_confidence"], 0.84)
@@ -38,24 +57,24 @@ class JudgeAgentTestCase(unittest.TestCase):
         payload = {
             "router_result": {"sample_type": "sarcasm_suspected"},
             "emotion_result": {
-                "emotion": "开心",
+                "emotion": "happy",
                 "intensity": 61,
                 "confidence": 0.72,
-                "reason": "表面正向词明显。",
+                "reason": "surface positive words",
             },
             "sarcasm_result": {
                 "is_sarcasm": True,
-                "surface_emotion": "开心",
-                "true_emotion": "厌烦",
+                "surface_emotion": "happy",
+                "true_emotion": "annoyed",
                 "revised_intensity": 74,
                 "confidence": 0.86,
-                "reason": "正向词与负面工作语境冲突，反讽成立。",
+                "reason": "positive wording conflicts with negative context",
             },
         }
 
         result = self.agent.judge_dict(payload)
 
-        self.assertEqual(result["final_emotion"], "厌烦")
+        self.assertEqual(result["final_emotion"], "annoyed")
         self.assertEqual(result["final_intensity"], 74)
         self.assertTrue(result["is_sarcasm"])
         self.assertFalse(result["is_mixed"])
@@ -64,24 +83,24 @@ class JudgeAgentTestCase(unittest.TestCase):
         payload = {
             "router_result": {"sample_type": "sarcasm_suspected"},
             "emotion_result": {
-                "emotion": "开心",
+                "emotion": "happy",
                 "intensity": 58,
                 "confidence": 0.8,
-                "reason": "表面正向。",
+                "reason": "surface positive words",
             },
             "sarcasm_result": {
                 "is_sarcasm": True,
-                "surface_emotion": "开心",
-                "true_emotion": "厌烦",
+                "surface_emotion": "happy",
+                "true_emotion": "annoyed",
                 "revised_intensity": 70,
                 "confidence": 0.52,
-                "reason": "证据不足。",
+                "reason": "weak evidence",
             },
         }
 
         result = self.agent.judge_dict(payload)
 
-        self.assertEqual(result["final_emotion"], "开心")
+        self.assertEqual(result["final_emotion"], "happy")
         self.assertEqual(result["final_intensity"], 58)
         self.assertEqual(result["final_confidence"], 0.64)
         self.assertFalse(result["is_sarcasm"])
@@ -90,26 +109,26 @@ class JudgeAgentTestCase(unittest.TestCase):
         payload = {
             "router_result": {"sample_type": "mix"},
             "emotion_result": {
-                "emotion": "开心",
+                "emotion": "happy",
                 "intensity": 62,
                 "confidence": 0.77,
-                "reason": "主观正向。",
+                "reason": "surface positive signal",
             },
             "mix_result": {
                 "is_mixed": True,
-                "primary_emotion": "疲惫",
-                "secondary_emotion": "开心",
-                "mix_ratio": {"疲惫": 0.58, "开心": 0.42},
+                "primary_emotion": "tired",
+                "secondary_emotion": "happy",
+                "mix_ratio": {"tired": 0.58, "happy": 0.42},
                 "revised_intensity": 57,
                 "confidence": 0.79,
-                "reason": "转折后疲惫占主导，属于混合情绪。",
+                "reason": "contrast makes tiredness dominant",
             },
         }
 
         result = self.agent.judge_dict(payload)
 
-        self.assertEqual(result["final_emotion"], "疲惫")
-        self.assertEqual(result["secondary_emotion"], "开心")
+        self.assertEqual(result["final_emotion"], "tired")
+        self.assertEqual(result["secondary_emotion"], "happy")
         self.assertEqual(result["final_intensity"], 57)
         self.assertTrue(result["is_mixed"])
 
@@ -117,29 +136,76 @@ class JudgeAgentTestCase(unittest.TestCase):
         payload = {
             "router_result": {"sample_type": "mix"},
             "emotion_result": {
-                "emotion": "焦虑",
+                "emotion": "anxiety",
                 "intensity": 55,
                 "confidence": 0.75,
-                "reason": "有明显负向色彩。",
+                "reason": "negative tone",
             },
             "mix_result": {
                 "is_mixed": True,
-                "primary_emotion": "疲惫",
-                "secondary_emotion": "焦虑",
-                "mix_ratio": {"疲惫": 0.51, "焦虑": 0.49},
+                "primary_emotion": "tired",
+                "secondary_emotion": "anxiety",
+                "mix_ratio": {"tired": 0.51, "anxiety": 0.49},
                 "revised_intensity": 53,
                 "confidence": 0.41,
-                "reason": "结构不够稳定。",
+                "reason": "not stable enough",
             },
         }
 
         result = self.agent.judge_dict(payload)
 
-        self.assertEqual(result["final_emotion"], "焦虑")
+        self.assertEqual(result["final_emotion"], "anxiety")
         self.assertIsNone(result["secondary_emotion"])
         self.assertEqual(result["final_intensity"], 55)
         self.assertEqual(result["final_confidence"], 0.6)
         self.assertFalse(result["is_mixed"])
+
+    def test_direct_high_confidence_skips_llm_review(self) -> None:
+        client = FakeJudgeClient()
+        agent = JudgeAgent(client=client)
+        payload = {
+            "router_result": {"sample_type": "direct"},
+            "emotion_result": {
+                "emotion": "anxiety",
+                "intensity": 68,
+                "confidence": 0.84,
+                "reason": "direct anxiety signal",
+            },
+        }
+
+        result = agent.judge_dict(payload)
+
+        self.assertEqual(client.calls, 0)
+        self.assertEqual(result["final_emotion"], "anxiety")
+
+    def test_conflicting_sarcasm_result_uses_llm_review(self) -> None:
+        client = FakeJudgeClient()
+        agent = JudgeAgent(client=client)
+        payload = {
+            "text": "Great, another weekend of work.",
+            "router_result": {"sample_type": "sarcasm_suspected"},
+            "emotion_result": {
+                "emotion": "happy",
+                "intensity": 61,
+                "confidence": 0.72,
+                "reason": "surface positive words",
+            },
+            "sarcasm_result": {
+                "is_sarcasm": True,
+                "surface_emotion": "happy",
+                "true_emotion": "annoyed",
+                "revised_intensity": 74,
+                "confidence": 0.86,
+                "reason": "positive wording conflicts with negative context",
+            },
+        }
+
+        result = agent.judge_dict(payload)
+
+        self.assertEqual(client.calls, 1)
+        self.assertEqual(result["final_emotion"], "negative")
+        self.assertEqual(result["final_confidence"], 0.82)
+        self.assertTrue(result["is_sarcasm"])
 
 
 if __name__ == "__main__":
