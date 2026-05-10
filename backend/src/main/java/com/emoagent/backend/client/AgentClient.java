@@ -1,5 +1,6 @@
 package com.emoagent.backend.client;
 
+import com.emoagent.backend.dto.ChatRequest;
 import com.emoagent.backend.dto.JudgeRequest;
 import com.emoagent.backend.dto.TextAnalyzeRequest;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,6 +51,14 @@ public class AgentClient {
     public Map<String, Object> judge(JudgeRequest request) {
         return restClient.post()
                 .uri("/judge")
+                .body(request)
+                .retrieve()
+                .body(MAP_RESPONSE);
+    }
+
+    public Map<String, Object> chat(ChatRequest request) {
+        return restClient.post()
+                .uri("/chat")
                 .body(request)
                 .retrieve()
                 .body(MAP_RESPONSE);
