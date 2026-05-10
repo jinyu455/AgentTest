@@ -1,11 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import sys
 import unittest
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
+AGENTS_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(AGENTS_ROOT))
 
 from sarcasm_agent import SarcasmAgent
 from sarcasm_agent.schemas import SarcasmInput
@@ -142,3 +143,4 @@ class SarcasmAgentTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

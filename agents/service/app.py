@@ -9,8 +9,9 @@ from urllib.error import HTTPError, URLError
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
+AGENTS_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(AGENTS_ROOT))
 
 from emotion_agent import EmotionAgent, HTTPEmotionLLMClient  # noqa: E402
 from emotion_agent import LLMConfig as EmotionLLMConfig  # noqa: E402
@@ -42,7 +43,7 @@ class JudgeInputPayload(BaseModel):
 
 
 def _load_api_key() -> str:
-    env_path = PROJECT_ROOT / ".env"
+    env_path = REPO_ROOT / ".env"
     if env_path.exists():
         for raw_line in env_path.read_text(encoding="utf-8").splitlines():
             line = raw_line.strip()

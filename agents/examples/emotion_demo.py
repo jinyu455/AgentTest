@@ -1,17 +1,18 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
 import sys
 from pathlib import Path 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
+AGENTS_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(AGENTS_ROOT))
 
 from emotion_agent import EmotionAgent, HTTPEmotionLLMClient, LLMConfig
 
 def load_api_key() -> str:
-    env_path = PROJECT_ROOT / ".env"
+    env_path = REPO_ROOT / ".env"
     if env_path.exists():
         for raw_line in env_path.read_text(encoding="utf-8").splitlines():
             line = raw_line.strip()
@@ -61,3 +62,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

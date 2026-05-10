@@ -78,16 +78,16 @@ backend/
 
 需要先启动 Python Agent 服务。
 
-进入项目根目录下的 `service` 目录：
+进入项目根目录下的 `agents` 目录：
 
 ```powershell
-cd D:\PracticalTraining\Agenttest\EmoAgent\service
+cd D:\PracticalTraining\Agenttest\EmoAgent\agents
 ```
 
 启动 FastAPI：
 
 ```powershell
-uvicorn app:app --reload
+uvicorn service.app:app --reload
 ```
 
 默认服务地址：
@@ -141,6 +141,8 @@ src/main/resources/application.yml
 ```yaml
 server:
   port: 8080
+
+spring:
   servlet:
     encoding:
       charset: UTF-8
@@ -374,6 +376,6 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 请先启动：
 
 ```powershell
-cd D:\PracticalTraining\Agenttest\EmoAgent\service
-uvicorn app:app --reload
+cd D:\PracticalTraining\Agenttest\EmoAgent\agents
+uvicorn service.app:app --reload
 ```

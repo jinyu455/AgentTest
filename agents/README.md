@@ -1,0 +1,184 @@
+# EmoAgent Agents
+
+这里放 Python 侧的 Agent 实现、FastAPI 服务、示例和测试。
+
+## 目录
+
+```text
+agents/
+  emotion_agent/
+  judge_agent/
+  mix_agent/
+  router_agent/
+  sarcasm_agent/
+  service/
+    app.py
+  examples/
+  tests/
+  requirements.txt
+```
+
+## 首次拉取项目
+
+在仓库根目录准备 `.env`：
+
+```env
+API_KEY=你的deepseek服务密钥
+```
+
+如需更换大模型，可通过环境变量配置：
+
+```env
+LLM_BASE_URL=https://api.deepseek.com/v1/chat/completions
+LLM_MODEL=deepseek-chat
+```
+
+然后进入 `agents` 目录，创建虚拟环境并安装依赖：
+
+```powershell
+cd agents
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+## 后续启动服务
+
+后续不用重复创建虚拟环境，只需要进入 `agents` 目录、激活环境并启动 FastAPI：
+
+```powershell
+cd agents
+.\.venv\Scripts\Activate.ps1
+uvicorn service.app:app --reload
+```
+
+默认服务地址：
+
+```text
+http://127.0.0.1:8000
+```
+
+健康检查：
+
+```powershell
+curl http://127.0.0.1:8000/health
+```
+
+## 可用接口
+
+- `GET /health`
+- `POST /router`
+- `POST /emotion`
+- `POST /sarcasm`
+- `POST /mix`
+- `POST /judge`
+
+## 请求示例
+
+`/router`、`/emotion`、`/sarcasm`、`/mix` 接收相同的文本请求体：
+
+```json
+{
+  "id": "msg_001",
+  "user_id": "u_1001",
+  "text": "太好了，周末又能继续改需求了。",
+  "source": "chat",
+  "created_at": "2026-05-09T14:00:00",
+  "metadata": {}
+}
+```
+
+PowerShell 示例：
+
+```powershell
+curl -Method Post `
+  -Uri http://127.0.0.1:8000/router `
+  -ContentType "application/json; charset=utf-8" `
+  -Body '{
+    "id": "msg_001",
+    "user_id": "u_1001",
+    "text": "太好了，周末又能继续改需求了。",
+    "source": "chat",
+    "created_at": "2026-05-09T14:00:00",
+    "metadata": {}
+  }'
+```
+
+把 URL 换成下面任一接口即可调用对应 Agent：
+
+```text
+http://127.0.0.1:8000/emotion
+http://127.0.0.1:8000/sarcasm
+http://127.0.0.1:8000/mix
+```
+
+`/judge` 接收上游 Agent 的结构化结果：
+
+```json
+{
+  "text": "太好了，周末又能继续改需求了。",
+  "router_result": {
+    "sample_type": "sarcasm_suspected",
+    "need_sarcasm_check": true,
+    "need_mix_check": false,
+    "routing_reason": "句子表面正向，但事件语境明显负向，疑似反讽。",
+    "evidence": ["正向词: 太好了", "负向场景: 周末继续改需求"]
+  },
+  "emotion_result": {
+    "emotion": "开心",
+    "intensity": 62,
+    "confidence": 0.72,
+    "reason": "文本表面包含明显正向表达。"
+  },
+  "sarcasm_result": {
+    "is_sarcasm": true,
+    "surface_emotion": "开心",
+    "true_emotion": "厌烦",
+    "revised_intensity": 74,
+    "confidence": 0.86,
+    "reason": "正向词与负向工作场景形成反差。"
+  },
+  "mix_result": null
+}
+```
+
+PowerShell 示例：
+
+```powershell
+curl -Method Post `
+  -Uri http://127.0.0.1:8000/judge `
+  -ContentType "application/json; charset=utf-8" `
+  -Body '{
+    "text": "太好了，周末又能继续改需求了。",
+    "router_result": {
+      "sample_type": "sarcasm_suspected",
+      "need_sarcasm_check": true,
+      "need_mix_check": false,
+      "routing_reason": "句子表面正向，但事件语境明显负向，疑似反讽。",
+      "evidence": ["正向词: 太好了", "负向场景: 周末继续改需求"]
+    },
+    "emotion_result": {
+      "emotion": "开心",
+      "intensity": 62,
+      "confidence": 0.72,
+      "reason": "文本表面包含明显正向表达。"
+    },
+    "sarcasm_result": {
+      "is_sarcasm": true,
+      "surface_emotion": "开心",
+      "true_emotion": "厌烦",
+      "revised_intensity": 74,
+      "confidence": 0.86,
+      "reason": "正向词与负向工作场景形成反差。"
+    },
+    "mix_result": null
+  }'
+```
+
+## 运行测试
+
+```powershell
+cd agents
+.\.venv\Scripts\Activate.ps1
+python -m unittest discover tests
+```

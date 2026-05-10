@@ -39,6 +39,7 @@ htmlcov/
 # IDEs and editors
 .vscode/
 .idea/
+.metals/
 *.swp
 *.swo
 
@@ -56,6 +57,10 @@ service/.venv/
 service/__pycache__/
 service/*.log
 service/.python-version
+agents/.venv/
+agents/service/__pycache__/
+agents/service/*.log
+agents/service/.python-version
 
 # Local runtime / tooling
 *.sqlite3
