@@ -1,6 +1,8 @@
 package com.emoagent.backend.controller;
 
 import com.emoagent.backend.dto.AnalyzeResponse;
+import com.emoagent.backend.dto.ChatRequest;
+import com.emoagent.backend.dto.ChatResponse;
 import com.emoagent.backend.dto.TextAnalyzeRequest;
 import com.emoagent.backend.service.EmotionAnalysisService;
 import jakarta.validation.Valid;
@@ -29,5 +31,10 @@ public class EmotionAnalysisController {
     @PostMapping("/analyze")
     public AnalyzeResponse analyze(@Valid @RequestBody TextAnalyzeRequest request) {
         return emotionAnalysisService.analyze(request);
+    }
+
+    @PostMapping("/chat")
+    public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
+        return emotionAnalysisService.chat(request);
     }
 }

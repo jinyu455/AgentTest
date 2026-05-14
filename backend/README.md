@@ -29,6 +29,7 @@
 - 接收文本情绪分析请求
 - 调用 Python FastAPI Agent 服务
 - 编排 Router、Emotion、Sarcasm、Mix、Judge 流程
+- 提供 Chat 聊天接口，在回复前先完成情绪分析并携带最终裁决结果
 - 返回完整情绪分析结果
 
 ## 目录结构
@@ -50,6 +51,8 @@ backend/
             EmotionAnalysisController.java
           dto/
             AnalyzeResponse.java
+            ChatRequest.java
+            ChatResponse.java
             JudgeRequest.java
             TextAnalyzeRequest.java
           exception/
@@ -87,6 +90,7 @@ cd D:\PracticalTraining\Agenttest\EmoAgent\agents
 启动 FastAPI：
 
 ```powershell
+.\.venv\Scripts\Activate.ps1
 uvicorn service.app:app --reload
 ```
 
@@ -267,6 +271,107 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
+### 聊天回复
+
+```http
+POST /api/emotion/chat
+```
+
+该接口用于聊天场景。后端会先对用户输入执行完整情绪分析流程，得到 `judge_result` 后再调用 Python FastAPI Agent 服务的 `/chat`，让聊天回复可以参考最终情绪、强度、置信度、是否反讽、是否混合情绪等信息。
+
+后端内部调用流程：
+
+```text
+1. 将聊天文本转换为情绪分析请求，source 固定为 chat
+2. 调用 /router、/emotion、/sarcasm、/mix、/judge 得到 analysis_result
+3. 将 analysis_result.judge_result 写入 chat 请求
+4. 调用 Python Agent 服务 /chat 获取聊天回复
+5. 返回原始文本、完整情绪分析结果和聊天结果
+```
+
+请求头：
+
+```http
+Content-Type: application/json; charset=utf-8
+```
+
+请求体字段说明：
+
+- `text`：必填，用户当前输入的聊天文本
+- `user_id`：必填，用户 ID
+- `conversation_id`：可选，会话 ID，用于多轮对话关联
+- `history`：可选，历史消息列表
+- `metadata`：可选，额外上下文信息
+- `judge_result`：前端通常不需要传，后端会自动写入最新情绪裁决结果
+
+请求体示例：
+
+```json
+{
+  "text": "太好了，周末又能继续改需求了。",
+  "user_id": "u_1001",
+  "conversation_id": "conv_001",
+  "history": [
+    {
+      "role": "user",
+      "content": "最近工作压力有点大"
+    },
+    {
+      "role": "assistant",
+      "content": "听起来你已经持续紧绷了一段时间。"
+    }
+  ],
+  "metadata": {
+    "scene": "daily_chat"
+  }
+}
+```
+
+返回体示例：
+
+```json
+{
+  "text": "太好了，周末又能继续改需求了。",
+  "analysis_result": {
+    "text": "太好了，周末又能继续改需求了。",
+    "router_result": {
+      "sample_type": "sarcasm_suspected",
+      "need_sarcasm_check": true,
+      "need_mix_check": false,
+      "routing_reason": "...",
+      "evidence": []
+    },
+    "emotion_result": {
+      "emotion": "开心",
+      "intensity": 62,
+      "confidence": 0.61,
+      "reason": "..."
+    },
+    "sarcasm_result": {
+      "is_sarcasm": true,
+      "surface_emotion": "开心",
+      "true_emotion": "厌烦",
+      "revised_intensity": 75,
+      "confidence": 0.9,
+      "reason": "..."
+    },
+    "mix_result": null,
+    "judge_result": {
+      "final_emotion": "厌烦",
+      "secondary_emotion": null,
+      "final_intensity": 75,
+      "final_confidence": 0.9,
+      "is_sarcasm": true,
+      "is_mixed": false,
+      "reason": "..."
+    }
+  },
+  "chat_result": {
+    "reply": "听起来你是在用玩笑的方式表达疲惫和无奈。要不要先把最卡的一件事拆小一点？"
+  }
+}
+```
+
 ## 使用 Apifox 测试
 
 推荐使用 Apifox 或 Postman 测试中文接口，避免 PowerShell 终端编码导致中文显示乱码。
@@ -288,6 +393,27 @@ Body：
   "source": "chat",
   "created_at": "2026-05-09T14:00:00",
   "metadata": {}
+}
+```
+
+测试聊天接口：
+
+- Method：`POST`
+- URL：`http://127.0.0.1:8080/api/emotion/chat`
+- Header：`Content-Type: application/json; charset=utf-8`
+- Body 类型：`JSON`
+
+Body：
+
+```json
+{
+  "text": "太好了，周末又能继续改需求了。",
+  "user_id": "u_1001",
+  "conversation_id": "conv_001",
+  "history": [],
+  "metadata": {
+    "scene": "daily_chat"
+  }
 }
 ```
 
@@ -377,5 +503,6 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 ```powershell
 cd D:\PracticalTraining\Agenttest\EmoAgent\agents
+.\.venv\Scripts\Activate.ps1
 uvicorn service.app:app --reload
 ```
