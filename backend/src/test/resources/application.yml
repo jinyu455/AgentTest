@@ -1,22 +1,13 @@
-server:
-  port: 8080
-  
-spring:  
+spring:
   datasource:
-    url: jdbc:sqlite:./data/emoagent.sqlite3
+    url: jdbc:sqlite:file:emoagent-test?mode=memory&cache=shared
     driver-class-name: org.sqlite.JDBC
 
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     show-sql: false
-
-  servlet:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force: true
 
 emo-agent:
   base-url: http://127.0.0.1:8000

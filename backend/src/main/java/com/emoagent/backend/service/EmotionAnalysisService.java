@@ -17,9 +17,11 @@ import java.util.UUID;
 @Service
 public class EmotionAnalysisService {
     private final AgentClient agentClient;
+    private final ChatPersistenceService chatPersistenceService;
 
-    public EmotionAnalysisService(AgentClient agentClient) {
+    public EmotionAnalysisService(AgentClient agentClient, ChatPersistenceService chatPersistenceService) {
         this.agentClient = agentClient;
+        this.chatPersistenceService = chatPersistenceService;
     }
 
     public AnalyzeResponse analyze(TextAnalyzeRequest request) {
@@ -56,18 +58,22 @@ public class EmotionAnalysisService {
     }
 
     public ChatResponse chat(ChatRequest request) {
+        ChatPersistenceService.ChatTurn chatTurn = chatPersistenceService.startTurn(request);
         AnalyzeResponse analysisResult = analyze(toAnalyzeRequest(request));
+        chatPersistenceService.saveEmotionRecord(chatTurn, analysisResult);
+        List<Map<String, Object>> history = chatPersistenceService.historyBeforeTurn(chatTurn);
         ChatRequest agentRequest = new ChatRequest(
                 request.text(),
                 request.userId(),
-                request.conversationId(),
+                chatTurn.conversationId(),
                 analysisResult.judgeResult(),
-                emptyIfNull(request.history()),
+                history,
                 metadata(request)
         );
         Map<String, Object> chatResult = agentClient.chat(agentRequest);
+        chatPersistenceService.saveAssistantMessage(chatTurn.conversationId(), chatResult);
 
-        return new ChatResponse(request.text(), analysisResult, chatResult);
+        return new ChatResponse(chatTurn.conversationId(), request.text(), analysisResult, chatResult);
     }
 
     public Map<String, Object> health() {
@@ -91,10 +97,6 @@ public class EmotionAnalysisService {
             metadata.putAll(request.metadata());
         }
         return metadata;
-    }
-
-    private List<Map<String, Object>> emptyIfNull(List<Map<String, Object>> value) {
-        return value == null ? List.of() : value;
     }
 
     private boolean isTrue(Object value) {
