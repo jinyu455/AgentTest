@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Optional, Dict, Any
 import json
 import pymysql
@@ -12,7 +13,7 @@ class Database:
         self.host = host or os.getenv("DB_HOST", "localhost")
         self.port = port or int(os.getenv("DB_PORT", "3306"))
         self.user = user or os.getenv("DB_USER", "root")
-        self.password = password or os.getenv("DB_PASSWORD", "")
+        self.password = password or os.getenv("DB_PASSWORD", "123456")
         self.database = database or os.getenv("DB_NAME", "emotion_agent")
         self._conn: Optional[pymysql.Connection] = None
 
@@ -29,10 +30,21 @@ class Database:
             )
         return self._conn
 
-    def close(self) -> None:
-        if self._conn:
-            self._conn.close()
-            self._conn = None
+
+    def _normalize_datetime(self, value: Any) -> Optional[str]:
+        if value is None:
+            return None
+
+        text = str(value).strip()
+        if not text:
+            return None
+
+        normalized = text.replace("Z", "+00:00")
+        try:
+            dt = datetime.fromisoformat(normalized)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return text.replace("T", " ").split(".", 1)[0]
 
     def insert_raw_text(self, input_data: Dict[str, Any]) -> None:
         conn = self._connect()
@@ -44,7 +56,7 @@ class Database:
                 input_data["user_id"],
                 input_data["text"],
                 input_data["source"],
-                input_data["created_at"],
+                self._normalize_datetime(input_data.get("created_at")),
             ))
         conn.commit()
 
@@ -68,6 +80,6 @@ class Database:
                 result.get("reason"),
                 json.dumps(result.get("tokens", []), ensure_ascii=False),
                 json.dumps(result.get("emotion_words", []), ensure_ascii=False),
-                result["created_at"].replace("T", " ") if result.get("created_at") else None,
+                self._normalize_datetime(result.get("created_at")),
             ))
         conn.commit()

@@ -1,7 +1,6 @@
 package com.emoagent.backend.client;
 
 import com.emoagent.backend.dto.ChatRequest;
-import com.emoagent.backend.dto.JudgeRequest;
 import com.emoagent.backend.dto.TextAnalyzeRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -32,39 +31,15 @@ public class AgentClient {
                 .body(MAP_RESPONSE);
     }
 
-    public Map<String, Object> router(TextAnalyzeRequest request) {
-        return postText("/router", request);
-    }
-
-    public Map<String, Object> emotion(TextAnalyzeRequest request) {
-        return postText("/emotion", request);
-    }
-
-    public Map<String, Object> sarcasm(TextAnalyzeRequest request) {
-        return postText("/sarcasm", request);
-    }
-
-    public Map<String, Object> mix(TextAnalyzeRequest request) {
-        return postText("/mix", request);
-    }
-
-    public Map<String, Object> judge(JudgeRequest request) {
-        return restClient.post()
-                .uri("/judge")
-                .body(request)
-                .retrieve()
-                .body(MAP_RESPONSE);
+    public Map<String, Object> analyze(TextAnalyzeRequest request) {
+        return post("/analyze", request);
     }
 
     public Map<String, Object> chat(ChatRequest request) {
-        return restClient.post()
-                .uri("/chat")
-                .body(request)
-                .retrieve()
-                .body(MAP_RESPONSE);
+        return post("/chat", request);
     }
 
-    private Map<String, Object> postText(String uri, TextAnalyzeRequest request) {
+    private Map<String, Object> post(String uri, Object request) {
         return restClient.post()
                 .uri(uri)
                 .body(request)

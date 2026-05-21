@@ -4,11 +4,12 @@ import com.emoagent.backend.client.AgentClient;
 import com.emoagent.backend.dto.AnalyzeResponse;
 import com.emoagent.backend.dto.ChatRequest;
 import com.emoagent.backend.dto.ChatResponse;
-import com.emoagent.backend.dto.JudgeRequest;
 import com.emoagent.backend.dto.TextAnalyzeRequest;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,9 @@ import java.util.UUID;
 
 @Service
 public class EmotionAnalysisService {
+    private static final ZoneId UTC = ZoneId.of("UTC");
+    private static final DateTimeFormatter MYSQL_DATETIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private final AgentClient agentClient;
     private final ChatPersistenceService chatPersistenceService;
 
@@ -25,36 +29,7 @@ public class EmotionAnalysisService {
     }
 
     public AnalyzeResponse analyze(TextAnalyzeRequest request) {
-        Map<String, Object> routerResult = agentClient.router(request);
-        Map<String, Object> emotionResult = agentClient.emotion(request);
-
-        Map<String, Object> sarcasmResult = null;
-        if (isTrue(routerResult.get("need_sarcasm_check"))) {
-            sarcasmResult = agentClient.sarcasm(request);
-        }
-
-        Map<String, Object> mixResult = null;
-        if (isTrue(routerResult.get("need_mix_check"))) {
-            mixResult = agentClient.mix(request);
-        }
-
-        JudgeRequest judgeRequest = new JudgeRequest(
-                request.text(),
-                routerResult,
-                emotionResult,
-                sarcasmResult,
-                mixResult
-        );
-        Map<String, Object> judgeResult = agentClient.judge(judgeRequest);
-
-        return new AnalyzeResponse(
-                request.text(),
-                routerResult,
-                emotionResult,
-                sarcasmResult,
-                mixResult,
-                judgeResult
-        );
+        return toAnalyzeResponse(agentClient.analyze(request), request.text());
     }
 
     public ChatResponse chat(ChatRequest request) {
@@ -86,7 +61,7 @@ public class EmotionAnalysisService {
                 request.userId(),
                 request.text(),
                 "chat",
-                Instant.now().toString(),
+                LocalDateTime.now(UTC).format(MYSQL_DATETIME),
                 metadata(request)
         );
     }
@@ -99,7 +74,83 @@ public class EmotionAnalysisService {
         return metadata;
     }
 
-    private boolean isTrue(Object value) {
-        return value instanceof Boolean bool && bool;
+    private AnalyzeResponse toAnalyzeResponse(Map<String, Object> payload, String fallbackText) {
+        if (payload == null) {
+            return new AnalyzeResponse(fallbackText, null, null, null, null, null);
+        }
+
+        if (payload.get("judge_result") instanceof Map<?, ?>) {
+            return new AnalyzeResponse(
+                    stringValue(payload.get("text"), fallbackText),
+                    mapValue(payload.get("router_result")),
+                    mapValue(payload.get("emotion_result")),
+                    mapValue(payload.get("sarcasm_result")),
+                    mapValue(payload.get("mix_result")),
+                    mapValue(payload.get("judge_result"))
+            );
+        }
+
+        return new AnalyzeResponse(
+                stringValue(payload.get("text"), fallbackText),
+                buildRouterResult(payload),
+                buildEmotionResult(payload),
+                null,
+                null,
+                buildJudgeResult(payload)
+        );
+    }
+
+    private Map<String, Object> buildRouterResult(Map<String, Object> payload) {
+        String sampleType = stringValue(payload.get("sample_type"), null);
+        if (sampleType == null) {
+            return null;
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sample_type", sampleType);
+        result.put("need_sarcasm_check", "sarcasm_suspected".equals(sampleType));
+        result.put("need_mix_check", "mix".equals(sampleType));
+        result.put("routing_reason", payload.get("reason"));
+        return result;
+    }
+
+    private Map<String, Object> buildEmotionResult(Map<String, Object> payload) {
+        if (payload.get("emotion") == null && payload.get("tokens") == null && payload.get("emotion_words") == null) {
+            return null;
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("emotion", payload.get("emotion"));
+        result.put("intensity", payload.get("intensity"));
+        result.put("confidence", payload.get("final_confidence"));
+        result.put("tokens", payload.get("tokens"));
+        result.put("emotion_words", payload.get("emotion_words"));
+        result.put("reason", payload.get("reason"));
+        return result;
+    }
+
+    private Map<String, Object> buildJudgeResult(Map<String, Object> payload) {
+        if (payload.get("emotion") == null && payload.get("final_confidence") == null) {
+            return null;
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("final_emotion", payload.get("emotion"));
+        result.put("secondary_emotion", payload.get("secondary_emotion"));
+        result.put("final_intensity", payload.get("intensity"));
+        result.put("final_confidence", payload.get("final_confidence"));
+        result.put("is_sarcasm", payload.get("is_sarcasm"));
+        result.put("is_mixed", payload.get("is_mixed"));
+        result.put("reason", payload.get("reason"));
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : null;
+    }
+
+    private String stringValue(Object value, String fallback) {
+        return value == null ? fallback : value.toString();
     }
 }

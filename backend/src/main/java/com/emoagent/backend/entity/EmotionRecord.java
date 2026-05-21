@@ -40,7 +40,7 @@ public class EmotionRecord {
     private Boolean mixed;
 
     @Lob
-    @Column(name = "raw_analysis_json", nullable = false)
+    @Column(name = "raw_analysis_json", nullable = false, columnDefinition = "LONGTEXT")
     private String rawAnalysisJson;
 
     @Column(name = "created_at", nullable = false)
