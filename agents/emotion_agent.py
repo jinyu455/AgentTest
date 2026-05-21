@@ -95,7 +95,7 @@ class EmotionAgent:
             "negation_words": negation_words,
             "contrast_words": contrast_words,
             "scores": scores,
-            "predicted_emotion": max(scores, key=scores.get),
+            "predicted_emotion": max(scores, key=scores.get)
         }
 
     def _call_llm(self, text: str, rule_info: Dict) -> Dict[str, Any]:

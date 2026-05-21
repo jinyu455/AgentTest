@@ -1,10 +1,25 @@
+# spring:
+#   datasource:
+#     url: jdbc:sqlite:file:emoagent-test?mode=memory&cache=shared
+#     driver-class-name: org.sqlite.JDBC
+
+#   jpa:
+#     database-platform: org.hibernate.community.dialect.SQLiteDialect
+#     hibernate:
+#       ddl-auto: create-drop
+#     show-sql: false
 spring:
+  config:
+    import: optional:file:F:/emotional_agent/database/.env[.properties]
+
   datasource:
-    url: jdbc:sqlite:file:emoagent-test?mode=memory&cache=shared
-    driver-class-name: org.sqlite.JDBC
+    url: jdbc:mysql://127.0.0.1:3306/emotion_agent_test?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
-    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    database-platform: org.hibernate.dialect.MySQL8Dialect
     hibernate:
       ddl-auto: create-drop
     show-sql: false
