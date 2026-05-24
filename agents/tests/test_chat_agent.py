@@ -77,6 +77,35 @@ class ChatAgentTestCase(unittest.TestCase):
         self.assertIn("今天有点累", messages[1]["content"])
         self.assertIn("judge_result", messages[1]["content"])
 
+    def test_build_messages_formats_history_for_context(self) -> None:
+        client = FakeChatLLMClient(
+            {
+                "reply": "可以，我们先把今晚的代码收个尾。",
+                "tone": "supportive",
+                "risk_hint": "none",
+                "suggested_actions": [],
+                "reason": "结合上一轮疲惫和当前建议请求。",
+            }
+        )
+        agent = ChatAgent(client=client)
+
+        messages = agent.build_messages(
+            {
+                "text": "能给我一些建议吗",
+                "history": [
+                    {"role": "user", "content": "太忙了，又改了一天的代码"},
+                    {"role": "assistant", "content": "忙了一天改代码确实很累，今晚早点休息。"},
+                ],
+                "judge_result": {"final_emotion": "疲惫", "final_intensity": 65},
+            }
+        )
+
+        prompt = messages[1]["content"]
+        self.assertIn("最近对话历史", prompt)
+        self.assertIn("用户: 太忙了，又改了一天的代码", prompt)
+        self.assertIn("当前用户消息", prompt)
+        self.assertIn("能给我一些建议吗", prompt)
+
     def test_invalid_tone_raises(self) -> None:
         client = FakeChatLLMClient(
             {

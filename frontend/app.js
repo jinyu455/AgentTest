@@ -85,6 +85,12 @@ async function handleSubmit(event) {
         text,
         user_id: state.userId,
         conversation_id: state.conversationId,
+        history: state.messages
+          .slice(-20)
+          .map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
         metadata: { source: "frontend" },
       }),
     });
@@ -301,7 +307,7 @@ function extractReply(chatResult) {
 async function readError(response) {
   try {
     const data = await response.json();
-    return data.message || data.detail || JSON.stringify(data);
+    return data.detail || data.message || JSON.stringify(data);
   } catch {
     return response.statusText;
   }

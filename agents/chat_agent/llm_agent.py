@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from typing import Any, Protocol
 
 from .schemas import ChatInput, ChatResult
@@ -11,17 +10,17 @@ TONE_LABELS = {"supportive", "calm", "encouraging", "reflective", "crisis_suppor
 RISK_HINTS = {"none", "possible_crisis"}
 
 SYSTEM_PROMPT = """你是 EmoAgent 中的 Chat Agent，负责生成情绪聊天助手的回复。
-你的目标不是给用户贴标签，而是基于情绪分析结果，用温和、尊重、具体的方式回应用户。
+你的目标不是给用户贴标签，而是基于情绪分析结果和最近对话历史，用温和、尊重、具体的方式回应用户。
 
 回复原则：
-- 先回应用户真实感受，再给出轻量建议。
+- 优先理解最近对话历史。如果当前用户说“能给我一些建议吗”“那怎么办”“这个怎么处理”等，需要结合上一轮内容回答。
+- 先回应用户真实感受，再给出轻量、具体、可执行的建议。
 - 不要说教，不要夸大判断，不要假装自己能替代专业帮助。
 - 如果 judge_result 中存在较高 safety_score，或文本出现自伤、自杀、伤害他人、极端危机倾向，risk_hint 必须为 possible_crisis，tone 使用 crisis_support。
-- 危机场景下，不提供危险方法，不鼓励危险行为，应建议联系可信任的人、当地紧急服务或专业支持。
+- 危机场景中，不提供危险方法，不鼓励危险行为，应建议联系可信任的人、当地紧急服务或专业支持。
 - 普通场景下，回复控制在 1 到 3 句话，像一个稳定的聊天助手，而不是分析报告。
 
 只返回 JSON，不要输出 markdown，不要增加额外字段。
-
 输出格式：
 {
   "reply": "给用户的中文回复",
@@ -77,7 +76,7 @@ class ChatAgent:
         if not isinstance(value, list):
             raise ValueError(f"Invalid {field_name} from LLM: expected list")
         return [str(item).strip() for item in value if str(item).strip()]
-    
+
     def build_messages(self, payload: ChatInput | dict[str, Any]) -> list[dict[str, str]]:
         item = payload if isinstance(payload, ChatInput) else ChatInput(**payload)
         return [
@@ -86,8 +85,43 @@ class ChatAgent:
         ]
 
     def _build_user_prompt(self, payload: ChatInput) -> str:
-        return (
-            "请基于下面的用户文本、情绪分析结果和对话历史，生成情绪聊天助手回复。\n\n"
-            f"{json.dumps(asdict(payload), ensure_ascii=False, indent=2)}"
-        )
+        return build_chat_user_prompt(payload)
 
+
+def build_chat_user_prompt(payload: ChatInput) -> str:
+    history = format_chat_history(payload.history)
+    judge_result = json.dumps(payload.judge_result or {}, ensure_ascii=False, indent=2)
+    metadata = json.dumps(payload.metadata or {}, ensure_ascii=False, indent=2)
+    return (
+        "请根据最近对话历史、当前用户消息和情绪分析结果生成回复。\n"
+        "如果当前用户消息里出现“这/这个/刚才/它/建议/怎么办”等依赖上下文的表达，"
+        "必须优先结合最近对话历史理解指代，不要把它当成全新的泛泛问题。\n\n"
+        f"conversation_id: {payload.conversation_id or ''}\n"
+        f"user_id: {payload.user_id or ''}\n\n"
+        "最近对话历史（按时间从旧到新）：\n"
+        f"{history}\n\n"
+        "当前用户消息：\n"
+        f"{payload.text}\n\n"
+        "当前消息的情绪分析 judge_result：\n"
+        f"{judge_result}\n\n"
+        "metadata：\n"
+        f"{metadata}"
+    )
+
+
+def format_chat_history(history: list[dict[str, Any]]) -> str:
+    if not history:
+        return "（无历史）"
+
+    lines: list[str] = []
+    for item in history[-20:]:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role", "")).strip()
+        content = str(item.get("content", "")).strip()
+        if role not in {"user", "assistant"} or not content:
+            continue
+        label = "用户" if role == "user" else "助手"
+        lines.append(f"{label}: {content}")
+
+    return "\n".join(lines) if lines else "（无历史）"

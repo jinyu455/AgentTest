@@ -160,7 +160,7 @@ def _execute(callable_fn: Any, payload: dict[str, Any]) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"LLM HTTP error: {exc}") from exc
+        raise HTTPException(status_code=502, detail=_http_error_detail(exc)) from exc
     except URLError as exc:
         raise HTTPException(status_code=502, detail=f"LLM network error: {exc}") from exc
     except TimeoutError as exc:
@@ -174,6 +174,113 @@ def _execute_agent(agent: Any, method_name: str, payload: dict[str, Any]) -> dic
     return _execute(getattr(agent, method_name), payload)
 
 
+def _execute_agent_or_fallback(
+    agent: Any,
+    method_name: str,
+    payload: dict[str, Any],
+    fallback_fn: Any,
+) -> dict[str, Any]:
+    _ensure_ready()
+    try:
+        return getattr(agent, method_name)(payload)
+    except Exception as exc:
+        return fallback_fn(payload, _exception_detail(exc))
+
+
+def _exception_detail(exc: Exception) -> str:
+    if isinstance(exc, HTTPError):
+        return _http_error_detail(exc)
+    return str(exc)
+
+
+def _http_error_detail(exc: HTTPError) -> str:
+    body = ""
+    try:
+        body = exc.read().decode("utf-8", errors="replace").strip()
+    except Exception:
+        body = ""
+
+    if body:
+        return f"LLM HTTP error {exc.code}: {body[:1000]}"
+    return f"LLM HTTP error {exc.code}: {exc.reason}"
+
+
+def _fallback_router(payload: dict[str, Any], detail: str) -> dict[str, Any]:
+    return {
+        "sample_type": "direct",
+        "need_sarcasm_check": False,
+        "need_mix_check": False,
+        "routing_reason": f"Router LLM 调用失败，已降级为 direct：{detail}",
+        "evidence": ["fallback"],
+        "fallback": True,
+        "fallback_detail": detail,
+    }
+
+
+def _fallback_emotion(payload: dict[str, Any], detail: str) -> dict[str, Any]:
+    text = str(payload.get("text", "")).strip()
+    return {
+        "tokens": [text] if text else [],
+        "emotion_words": [],
+        "degree_words": [],
+        "negation_words": [],
+        "contrast_words": [],
+        "emotion": "中性",
+        "intensity": 30,
+        "confidence": 0.2,
+        "reason": f"Emotion LLM 调用失败，已使用低置信度中性兜底：{detail}",
+        "fallback": True,
+        "fallback_detail": detail,
+    }
+
+
+def _fallback_sarcasm(payload: dict[str, Any], detail: str) -> dict[str, Any]:
+    return {
+        "is_sarcasm": False,
+        "surface_emotion": "中性",
+        "true_emotion": "中性",
+        "revised_intensity": 30,
+        "confidence": 0.2,
+        "reason": f"Sarcasm LLM 调用失败，已降级为无反讽：{detail}",
+        "fallback": True,
+        "fallback_detail": detail,
+    }
+
+
+def _fallback_mix(payload: dict[str, Any], detail: str) -> dict[str, Any]:
+    return {
+        "is_mixed": False,
+        "primary_emotion": "中性",
+        "secondary_emotion": "",
+        "mix_ratio": {},
+        "revised_intensity": 30,
+        "confidence": 0.2,
+        "reason": f"Mix LLM 调用失败，已降级为非混合情绪：{detail}",
+        "fallback": True,
+        "fallback_detail": detail,
+    }
+
+
+def _fallback_judge(payload: dict[str, Any], detail: str) -> dict[str, Any]:
+    try:
+        result = JudgeAgent().judge_dict(payload)
+    except Exception:
+        emotion_result = payload.get("emotion_result") or {}
+        result = {
+            "final_emotion": str(emotion_result.get("emotion", "中性")),
+            "secondary_emotion": None,
+            "final_intensity": int(emotion_result.get("intensity", 30)),
+            "final_confidence": float(emotion_result.get("confidence", 0.2)),
+            "is_sarcasm": False,
+            "is_mixed": False,
+            "reason": "Judge LLM 调用失败，已使用 emotion_result 兜底。",
+        }
+
+    result["fallback"] = True
+    result["fallback_detail"] = detail
+    return result
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     if startup_error:
@@ -183,27 +290,27 @@ def health() -> dict[str, Any]:
 
 @app.post("/router")
 def route(payload: TextInput) -> dict[str, Any]:
-    return _execute_agent(router_agent, "route_dict", payload.model_dump())
+    return _execute_agent_or_fallback(router_agent, "route_dict", payload.model_dump(), _fallback_router)
 
 
 @app.post("/emotion")
 def emotion(payload: TextInput) -> dict[str, Any]:
-    return _execute_agent(emotion_agent, "emotionRe_dict", payload.model_dump())
+    return _execute_agent_or_fallback(emotion_agent, "emotionRe_dict", payload.model_dump(), _fallback_emotion)
 
 
 @app.post("/sarcasm")
 def sarcasm(payload: TextInput) -> dict[str, Any]:
-    return _execute_agent(sarcasm_agent, "detect_dict", payload.model_dump())
+    return _execute_agent_or_fallback(sarcasm_agent, "detect_dict", payload.model_dump(), _fallback_sarcasm)
 
 
 @app.post("/mix")
 def mix(payload: TextInput) -> dict[str, Any]:
-    return _execute_agent(mix_agent, "mixRe_dict", payload.model_dump())
+    return _execute_agent_or_fallback(mix_agent, "mixRe_dict", payload.model_dump(), _fallback_mix)
 
 
 @app.post("/judge")
 def judge(payload: JudgeInputPayload) -> dict[str, Any]:
-    return _execute_agent(judge_agent, "judge_dict", payload.model_dump())
+    return _execute_agent_or_fallback(judge_agent, "judge_dict", payload.model_dump(), _fallback_judge)
 
 
 @app.post("/chat")

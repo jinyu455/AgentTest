@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from typing import Any
-from urllib import request
 
-from .llm_agent import SYSTEM_PROMPT
+from llm_http import post_json_with_retries
+from .llm_agent import SYSTEM_PROMPT, build_chat_user_prompt
 from .schemas import ChatInput
 
 
@@ -28,31 +28,19 @@ class HTTPChatLLMClient:
             "model": self.config.model,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": self._build_user_prompt(payload)},
+                {"role": "user", "content": build_chat_user_prompt(payload)},
             ],
             "temperature": 0.4,
             "response_format": {"type": "json_object"},
         }
-        req = request.Request(
-            url=self.config.base_url,
-            data=json.dumps(body).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.config.api_key}",
-            },
-            method="POST",
+        raw_text = post_json_with_retries(
+            self.config.base_url,
+            body,
+            self.config.api_key,
+            self.config.timeout_seconds,
         )
-
-        with request.urlopen(req, timeout=self.config.timeout_seconds) as response:
-            raw_text = response.read().decode("utf-8")
 
         return self._extract_result(raw_text)
-
-    def _build_user_prompt(self, payload: ChatInput) -> str:
-        return (
-            "请基于下面的用户文本、情绪分析结果和对话历史，生成情绪聊天助手回复。\n\n"
-            f"{json.dumps(asdict(payload), ensure_ascii=False, indent=2)}"
-        )
 
     def _extract_result(self, raw_text: str) -> dict[str, Any]:
         data = json.loads(raw_text)

@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from typing import Any
-from urllib import request
 
+from llm_http import post_json_with_retries
 from .llm_agent import SYSTEM_PROMPT
 from .schemas import JudgeInput, JudgeResult
 
@@ -33,18 +33,12 @@ class HTTPJudgeLLMClient:
             "temperature": 0.1,
             "response_format": {"type": "json_object"},
         }
-        req = request.Request(
-            url=self.config.base_url,
-            data=json.dumps(body).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.config.api_key}",
-            },
-            method="POST",
+        raw_text = post_json_with_retries(
+            self.config.base_url,
+            body,
+            self.config.api_key,
+            self.config.timeout_seconds,
         )
-
-        with request.urlopen(req, timeout=self.config.timeout_seconds) as response:
-            raw_text = response.read().decode("utf-8")
 
         return self._extract_result(raw_text)
 
