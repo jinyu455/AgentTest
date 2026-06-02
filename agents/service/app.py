@@ -75,54 +75,54 @@ def _load_api_key() -> str:
 
 def _build_router_agent() -> RouterAgent:
     config = RouterLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions"),
+        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "deepseek-chat"),
+        model=os.getenv("LLM_MODEL", "qwen-flash"),
     )
     return RouterAgent(client=HTTPRouterLLMClient(config))
 
 
 def _build_emotion_agent() -> EmotionAgent:
     config = EmotionLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions"),
+        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "deepseek-chat"),
+        model=os.getenv("LLM_MODEL", "qwen-flash"),
     )
     return EmotionAgent(client=HTTPEmotionLLMClient(config))
 
 
 def _build_sarcasm_agent() -> SarcasmAgent:
     config = SarcasmLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions"),
+        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "deepseek-chat"),
+        model=os.getenv("LLM_MODEL", "qwen-flash"),
     )
     return SarcasmAgent(client=HTTPSarcasmLLMClient(config))
 
 
 def _build_mix_agent() -> MixAgent:
     config = MixLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions"),
+        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "deepseek-chat"),
+        model=os.getenv("LLM_MODEL", "qwen-flash"),
     )
     return MixAgent(client=HTTPMixLLMClient(config))
 
 
 def _build_judge_agent() -> JudgeAgent:
     config = JudgeLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions"),
+        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "deepseek-chat"),
+        model=os.getenv("LLM_MODEL", "qwen-flash"),
     )
     return JudgeAgent(client=HTTPJudgeLLMClient(config))
 
 
 def _build_chat_agent() -> ChatAgent:
     config = ChatLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions"),
+        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "deepseek-chat"),
+        model=os.getenv("LLM_MODEL", "qwen-plus"),
     )
     return ChatAgent(client=HTTPChatLLMClient(config))
 
