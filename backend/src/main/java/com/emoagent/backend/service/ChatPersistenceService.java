@@ -73,6 +73,30 @@ public class ChatPersistenceService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> conversationsForUser(String userId) {
+        return conversationRepository.findTop20ByUserIdOrderByUpdatedAtDesc(userId).stream()
+                .map(conversation -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", conversation.getId());
+                    item.put("title", conversation.getTitle());
+                    item.put("created_at", conversation.getCreatedAt().toString());
+                    item.put("updated_at", conversation.getUpdatedAt().toString());
+                    return item;
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> messagesForConversation(String conversationId, String userId) {
+        conversationRepository.findByIdAndUserId(conversationId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
+
+        return chatMessageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
+                .map(this::historyItem)
+                .toList();
+    }
+
     @Transactional
     public void saveEmotionRecord(ChatTurn turn, AnalyzeResponse analysisResult) {
         Map<String, Object> judgeResult = analysisResult.judgeResult();

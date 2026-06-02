@@ -6,6 +6,8 @@ const state = {
   apiBase: localStorage.getItem(API_KEY) || DEFAULT_API_BASE,
   userId: getOrCreateUserId(),
   conversationId: null,
+  conversations: [],
+  conversationsStatus: "loading",
   messages: [],
   busy: false,
 };
@@ -15,6 +17,7 @@ const els = {
   chatForm: document.querySelector("#chatForm"),
   confidenceValue: document.querySelector("#confidenceValue"),
   conversationIdLabel: document.querySelector("#conversationIdLabel"),
+  conversationList: document.querySelector("#conversationList"),
   conversationTitle: document.querySelector("#conversationTitle"),
   emotionIntensity: document.querySelector("#emotionIntensity"),
   emotionMeta: document.querySelector("#emotionMeta"),
@@ -41,13 +44,16 @@ function init() {
   els.apiBaseInput.value = state.apiBase;
   renderMessages();
   renderConversation();
+  renderConversationList();
   bindEvents();
   checkHealth();
+  loadConversations();
 }
 
 function bindEvents() {
   els.chatForm.addEventListener("submit", handleSubmit);
   els.newChatButton.addEventListener("click", resetConversation);
+  els.conversationList.addEventListener("click", handleConversationListClick);
   els.saveApiButton.addEventListener("click", saveApiBase);
   els.rawToggle.addEventListener("click", () => {
     els.rawAnalysis.hidden = !els.rawAnalysis.hidden;
@@ -112,6 +118,7 @@ async function handleSubmit(event) {
     renderConversation(text);
     renderMessages(true);
     persistState();
+    await loadConversations();
   } catch (error) {
     removeLoadingMessage(loadingId);
     state.messages.push({
@@ -121,6 +128,7 @@ async function handleSubmit(event) {
     });
     setServiceStatus("连接失败", "offline");
     renderMessages(true);
+    persistState();
   } finally {
     setBusy(false);
   }
@@ -214,6 +222,51 @@ function renderConversation(lastText) {
   els.conversationIdLabel.textContent = state.conversationId || "尚未创建";
 }
 
+function renderConversationList() {
+  if (state.conversationsStatus === "loading") {
+    els.conversationList.innerHTML = `<p class="empty-history">正在加载历史会话...</p>`;
+    return;
+  }
+
+  if (state.conversationsStatus === "error") {
+    els.conversationList.innerHTML = `<p class="empty-history">历史会话加载失败，请确认后端已重启。</p>`;
+    return;
+  }
+
+  if (!state.conversations.length) {
+    els.conversationList.innerHTML = `<p class="empty-history">暂无历史会话，发送第一条消息后会出现在这里。</p>`;
+    return;
+  }
+
+  els.conversationList.innerHTML = state.conversations
+    .map((conversation) => {
+      const isActive = conversation.id === state.conversationId;
+      const title = conversation.title || "未命名会话";
+      const updatedAt = conversation.updated_at ? formatDate(conversation.updated_at) : "";
+      return `
+        <button class="history-item ${isActive ? "active" : ""}" type="button" data-conversation-id="${escapeHtml(conversation.id)}">
+          <strong>${escapeHtml(clamp(title, 18))}</strong>
+          <span>${escapeHtml(updatedAt)}</span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+async function handleConversationListClick(event) {
+  const button = event.target.closest("[data-conversation-id]");
+  if (!button || state.busy) {
+    return;
+  }
+
+  const conversation = state.conversations.find((item) => item.id === button.dataset.conversationId);
+  if (!conversation) {
+    return;
+  }
+
+  await loadConversationMessages(conversation.id);
+}
+
 async function checkHealth() {
   setServiceStatus("检查中", "");
   try {
@@ -238,6 +291,62 @@ function setBusy(isBusy) {
   els.messageInput.disabled = isBusy;
 }
 
+async function loadConversations() {
+  state.conversationsStatus = "loading";
+  renderConversationList();
+  try {
+    const response = await fetch(`${state.apiBase}/api/emotion/conversations?user_id=${encodeURIComponent(state.userId)}`);
+    if (!response.ok) {
+      throw new Error(await readError(response));
+    }
+    const conversations = await response.json();
+    state.conversations = Array.isArray(conversations) ? conversations : [];
+    state.conversationsStatus = "ready";
+    renderConversationList();
+
+    if (state.conversationId && !state.messages.length) {
+      await loadConversationMessages(state.conversationId, false);
+    }
+  } catch (error) {
+    state.conversations = [];
+    state.conversationsStatus = "error";
+    renderConversationList();
+  }
+}
+
+async function loadConversationMessages(conversationId, refreshList = true) {
+  setBusy(true);
+  try {
+    const response = await fetch(
+      `${state.apiBase}/api/emotion/conversations/${encodeURIComponent(conversationId)}/messages?user_id=${encodeURIComponent(state.userId)}`
+    );
+    if (!response.ok) {
+      throw new Error(await readError(response));
+    }
+    const messages = await response.json();
+    state.conversationId = conversationId;
+    state.messages = Array.isArray(messages)
+      ? messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+        }))
+      : [];
+    updateInsights(null);
+    renderConversation();
+    renderMessages(true);
+    persistState();
+    if (refreshList) {
+      renderConversationList();
+    }
+  } catch (error) {
+    state.messages = [];
+    renderMessages();
+    setServiceStatus("历史加载失败", "offline");
+  } finally {
+    setBusy(false);
+  }
+}
+
 function resetConversation() {
   state.conversationId = null;
   state.messages = [];
@@ -246,6 +355,7 @@ function resetConversation() {
   renderConversation();
   renderMessages();
   persistState();
+  loadConversations();
   els.messageInput.focus();
 }
 
@@ -254,16 +364,21 @@ function saveApiBase() {
   els.apiBaseInput.value = state.apiBase;
   localStorage.setItem(API_KEY, state.apiBase);
   checkHealth();
+  loadConversations();
 }
 
 function restoreState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     state.conversationId = saved.conversationId || null;
-    state.messages = Array.isArray(saved.messages) ? saved.messages : [];
+    state.messages = [];
+    state.conversations = [];
+    state.conversationsStatus = "loading";
   } catch {
     state.conversationId = null;
     state.messages = [];
+    state.conversations = [];
+    state.conversationsStatus = "loading";
   }
 }
 
@@ -272,7 +387,6 @@ function persistState() {
     STORAGE_KEY,
     JSON.stringify({
       conversationId: state.conversationId,
-      messages: state.messages.slice(-40),
     })
   );
 }
@@ -347,6 +461,19 @@ function toPercent(value) {
 
 function clamp(text, length) {
   return text.length > length ? `${text.slice(0, length)}...` : text;
+}
+
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function escapeHtml(value) {
