@@ -1,59 +1,37 @@
+"""Mix Agent 的 HTTP 客户端实现。
+
+通过 OpenAI 兼容的 HTTP 接口调用大语言模型，进行混合情绪分析。
+"""
+
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass
 from typing import Any
 
-from llm_http import post_json_with_retries
-from .llm_agent import SYSTEM_PROMPT
+from base.base_client import BaseHTTPLLMClient
+from .llm_agent import SYSTEM_PROMPT, build_mix_user_prompt
 from .schemas import MixInput
 
 
-@dataclass(slots=True)
-class LLMConfig:
-    base_url: str = "https://your-llm-service.example.com/v1/chat/completions"
-    api_key: str = "YOUR_API_KEY"
-    model: str = "YOUR_MODEL_NAME"
-    timeout_seconds: int = 30
+class HTTPMixLLMClient(BaseHTTPLLMClient):
+    """基于 HTTP 的 Mix Agent 大模型客户端。
 
-
-class HTTPMixLLMClient:
-    """Generic OpenAI-compatible client with placeholder config."""
-
-    def __init__(self, config: LLMConfig) -> None:
-        self.config = config
+    继承 BaseHTTPLLMClient，使用 OpenAI 兼容协议与大模型通信，
+    专门用于混合情绪（mix）分析场景。
+    """
 
     def analyze(self, payload: MixInput) -> dict[str, Any]:
-        body = {
-            "model": self.config.model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": self._build_user_prompt(payload)},
-            ],
-            "temperature": 0.1,
-            "response_format": {"type": "json_object"},
-        }
-        raw_text = post_json_with_retries(
-            self.config.base_url,
-            body,
-            self.config.api_key,
-            self.config.timeout_seconds,
-        )
+        """对输入文本进行混合情绪分析。
 
-        return self._extract_result(raw_text)
+        将 MixInput 序列化为 JSON 作为用户提示词，配合系统提示词
+        调用大模型，返回原始 JSON 结果。
 
-    def _build_user_prompt(self, payload: MixInput) -> str:
-        return (
-            "请判断下面这条消息是否属于混合情绪，并返回 JSON 结果。\n\n"
-            f"{json.dumps(asdict(payload), ensure_ascii=False, indent=2)}"
-        )
+        Args:
+            payload: 混合情绪分析的输入数据。
 
-    def _extract_result(self, raw_text: str) -> dict[str, Any]:
-        data = json.loads(raw_text)
-        content = data["choices"][0]["message"]["content"]
-
-        if isinstance(content, list):
-            text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
-            content = "".join(text_parts)
-
-        return json.loads(content)
+        Returns:
+            大模型返回的原始字典结果，包含 is_mixed、primary_emotion 等字段。
+        """
+        # 复用 llm_agent 中的 prompt 构建函数
+        user_prompt = build_mix_user_prompt(payload)
+        # 使用较低的 temperature 以获得更稳定的输出
+        return self._call_llm(SYSTEM_PROMPT, user_prompt, temperature=0.1)

@@ -9,7 +9,8 @@ AGENTS_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENTS_ROOT))
 
-from sarcasm_agent import HTTPSarcasmLLMClient, LLMConfig, SarcasmAgent
+from base.llm_config import LLMConfig
+from sarcasm_agent import HTTPSarcasmLLMClient, SarcasmAgent
 
 
 def load_api_key() -> str:

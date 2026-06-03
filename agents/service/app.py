@@ -1,318 +1,126 @@
+"""EmoAgent 情绪分析服务的 FastAPI 应用入口。
+
+本模块提供基于 FastAPI 的 HTTP API 服务，整合了情绪分析流水线中的
+所有 Agent（Router、Emotion、Sarcasm、Mix、Judge、Chat、Profile），
+对外暴露 RESTful 接口供前端或外部系统调用。
+
+主要接口：
+- POST /router    - 文本路由分类
+- POST /emotion   - 情感识别
+- POST /sarcasm   - 反讽检测
+- POST /mix       - 混合情绪分析
+- POST /judge     - 最终裁决
+- POST /chat      - 情绪聊天回复生成
+- POST /profile   - 用户情绪画像（纯统计）
+- POST /profile/generate - 用户情绪画像（含 LLM 生成）
+- GET  /health    - 健康检查
+
+容错机制：
+- 所有 Agent 均支持 fallback 降级，当大模型调用失败时返回保守的默认结果
+- 启动时如果 API_KEY 缺失，JudgeAgent 会以纯规则模式运行，其余 Agent 降级为 None
+"""
+
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
+from dataclasses import asdict
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
 
-AGENTS_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(AGENTS_ROOT))
+# 动态将 agents 目录加入 Python 路径
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from chat_agent import ChatAgent, HTTPChatLLMClient  # noqa: E402
-from chat_agent import LLMConfig as ChatLLMConfig  # noqa: E402
-from emotion_agent import EmotionAgent, HTTPEmotionLLMClient  # noqa: E402
-from emotion_agent import LLMConfig as EmotionLLMConfig  # noqa: E402
-from judge_agent import HTTPJudgeLLMClient, JudgeAgent  # noqa: E402
-from judge_agent import LLMConfig as JudgeLLMConfig  # noqa: E402
-from mix_agent import HTTPMixLLMClient, MixAgent  # noqa: E402
-from mix_agent import LLMConfig as MixLLMConfig  # noqa: E402
-from router_agent import HTTPRouterLLMClient, RouterAgent  # noqa: E402
-from router_agent import LLMConfig as RouterLLMConfig  # noqa: E402
-from sarcasm_agent import HTTPSarcasmLLMClient, SarcasmAgent  # noqa: E402
-from sarcasm_agent import LLMConfig as SarcasmLLMConfig  # noqa: E402
-
-
-class TextInput(BaseModel):
-    id: str
-    user_id: str
-    text: str
-    source: str
-    created_at: str
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class JudgeInputPayload(BaseModel):
-    router_result: dict[str, Any]
-    emotion_result: dict[str, Any]
-    sarcasm_result: dict[str, Any] | None = None
-    mix_result: dict[str, Any] | None = None
-    text: str | None = None
-
-
-class ChatInputPayload(BaseModel):
-    text: str
-    user_id: str | None = None
-    conversation_id: str | None = None
-    judge_result: dict[str, Any] | None = None
-    history: list[dict[str, Any]] = Field(default_factory=list)
-    metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-def _load_api_key() -> str:
-    env_path = REPO_ROOT / ".env"
-    if env_path.exists():
-        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            if key.strip() == "API_KEY":
-                api_key = value.strip().strip('"').strip("'")
-                if api_key:
-                    return api_key
-
-    api_key = os.getenv("API_KEY", "").strip()
-    if api_key:
-        return api_key
-
-    raise RuntimeError("API_KEY not found. Please set it in .env or environment variables.")
-
-
-def _build_router_agent() -> RouterAgent:
-    config = RouterLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
-        api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
-    )
-    return RouterAgent(client=HTTPRouterLLMClient(config))
-
-
-def _build_emotion_agent() -> EmotionAgent:
-    config = EmotionLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
-        api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
-    )
-    return EmotionAgent(client=HTTPEmotionLLMClient(config))
-
-
-def _build_sarcasm_agent() -> SarcasmAgent:
-    config = SarcasmLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
-        api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
-    )
-    return SarcasmAgent(client=HTTPSarcasmLLMClient(config))
-
-
-def _build_mix_agent() -> MixAgent:
-    config = MixLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
-        api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
-    )
-    return MixAgent(client=HTTPMixLLMClient(config))
-
-
-def _build_judge_agent() -> JudgeAgent:
-    config = JudgeLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
-        api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
-    )
-    return JudgeAgent(client=HTTPJudgeLLMClient(config))
-
-
-def _build_chat_agent() -> ChatAgent:
-    config = ChatLLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
-        api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-plus"),
-    )
-    return ChatAgent(client=HTTPChatLLMClient(config))
-
+from base.schemas import BaseTextInput  # noqa: E402
+from chat_agent.schemas import ChatInput  # noqa: E402
+from judge_agent.schemas import JudgeInput  # noqa: E402
+from profile_agent.schemas import ProfileInput  # noqa: E402
+from .utils import (  # noqa: E402
+    router_agent, emotion_agent, sarcasm_agent, mix_agent,
+    judge_agent, chat_agent, profile_agent,
+    startup_error,
+    execute, execute_agent, execute_agent_or_fallback,
+    fallback_router, fallback_emotion, fallback_sarcasm,
+    fallback_mix, fallback_judge, fallback_profile,
+)
+from profile_agent import extract_features, build_visualization_data  # noqa: E402
 
 app = FastAPI(title="EmoAgent Service", version="1.0.0")
 
-try:
-    router_agent = _build_router_agent()
-    emotion_agent = _build_emotion_agent()
-    sarcasm_agent = _build_sarcasm_agent()
-    mix_agent = _build_mix_agent()
-    judge_agent = _build_judge_agent()
-    chat_agent = _build_chat_agent()
-except RuntimeError as exc:
-    router_agent = None
-    emotion_agent = None
-    sarcasm_agent = None
-    mix_agent = None
-    judge_agent = JudgeAgent()
-    chat_agent = None
-    startup_error = str(exc)
-else:
-    startup_error = ""
-
-
-def _ensure_ready() -> None:
-    if startup_error:
-        raise HTTPException(status_code=503, detail=f"Service not ready: {startup_error}")
-
-
-def _execute(callable_fn: Any, payload: dict[str, Any]) -> dict[str, Any]:
-    _ensure_ready()
-    try:
-        return callable_fn(payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except HTTPError as exc:
-        raise HTTPException(status_code=502, detail=_http_error_detail(exc)) from exc
-    except URLError as exc:
-        raise HTTPException(status_code=502, detail=f"LLM network error: {exc}") from exc
-    except TimeoutError as exc:
-        raise HTTPException(status_code=504, detail=f"LLM timeout: {exc}") from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Internal error: {exc}") from exc
-
-
-def _execute_agent(agent: Any, method_name: str, payload: dict[str, Any]) -> dict[str, Any]:
-    _ensure_ready()
-    return _execute(getattr(agent, method_name), payload)
-
-
-def _execute_agent_or_fallback(
-    agent: Any,
-    method_name: str,
-    payload: dict[str, Any],
-    fallback_fn: Any,
-) -> dict[str, Any]:
-    _ensure_ready()
-    try:
-        return getattr(agent, method_name)(payload)
-    except Exception as exc:
-        return fallback_fn(payload, _exception_detail(exc))
-
-
-def _exception_detail(exc: Exception) -> str:
-    if isinstance(exc, HTTPError):
-        return _http_error_detail(exc)
-    return str(exc)
-
-
-def _http_error_detail(exc: HTTPError) -> str:
-    body = ""
-    try:
-        body = exc.read().decode("utf-8", errors="replace").strip()
-    except Exception:
-        body = ""
-
-    if body:
-        return f"LLM HTTP error {exc.code}: {body[:1000]}"
-    return f"LLM HTTP error {exc.code}: {exc.reason}"
-
-
-def _fallback_router(payload: dict[str, Any], detail: str) -> dict[str, Any]:
-    return {
-        "sample_type": "direct",
-        "need_sarcasm_check": False,
-        "need_mix_check": False,
-        "routing_reason": f"Router LLM 调用失败，已降级为 direct：{detail}",
-        "evidence": ["fallback"],
-        "fallback": True,
-        "fallback_detail": detail,
-    }
-
-
-def _fallback_emotion(payload: dict[str, Any], detail: str) -> dict[str, Any]:
-    text = str(payload.get("text", "")).strip()
-    return {
-        "tokens": [text] if text else [],
-        "emotion_words": [],
-        "degree_words": [],
-        "negation_words": [],
-        "contrast_words": [],
-        "emotion": "中性",
-        "intensity": 30,
-        "confidence": 0.2,
-        "reason": f"Emotion LLM 调用失败，已使用低置信度中性兜底：{detail}",
-        "fallback": True,
-        "fallback_detail": detail,
-    }
-
-
-def _fallback_sarcasm(payload: dict[str, Any], detail: str) -> dict[str, Any]:
-    return {
-        "is_sarcasm": False,
-        "surface_emotion": "中性",
-        "true_emotion": "中性",
-        "revised_intensity": 30,
-        "confidence": 0.2,
-        "reason": f"Sarcasm LLM 调用失败，已降级为无反讽：{detail}",
-        "fallback": True,
-        "fallback_detail": detail,
-    }
-
-
-def _fallback_mix(payload: dict[str, Any], detail: str) -> dict[str, Any]:
-    return {
-        "is_mixed": False,
-        "primary_emotion": "中性",
-        "secondary_emotion": "",
-        "mix_ratio": {},
-        "revised_intensity": 30,
-        "confidence": 0.2,
-        "reason": f"Mix LLM 调用失败，已降级为非混合情绪：{detail}",
-        "fallback": True,
-        "fallback_detail": detail,
-    }
-
-
-def _fallback_judge(payload: dict[str, Any], detail: str) -> dict[str, Any]:
-    try:
-        result = JudgeAgent().judge_dict(payload)
-    except Exception:
-        emotion_result = payload.get("emotion_result") or {}
-        result = {
-            "final_emotion": str(emotion_result.get("emotion", "中性")),
-            "secondary_emotion": None,
-            "final_intensity": int(emotion_result.get("intensity", 30)),
-            "final_confidence": float(emotion_result.get("confidence", 0.2)),
-            "is_sarcasm": False,
-            "is_mixed": False,
-            "reason": "Judge LLM 调用失败，已使用 emotion_result 兜底。",
-        }
-
-    result["fallback"] = True
-    result["fallback_detail"] = detail
-    return result
-
-
 @app.get("/health")
 def health() -> dict[str, Any]:
+    """健康检查接口。返回服务运行状态。"""
     if startup_error:
         return {"status": "degraded", "ready": False, "reason": startup_error}
     return {"status": "ok", "ready": True}
 
 
 @app.post("/router")
-def route(payload: TextInput) -> dict[str, Any]:
-    return _execute_agent_or_fallback(router_agent, "route_dict", payload.model_dump(), _fallback_router)
+def route(payload: BaseTextInput) -> dict[str, Any]:
+    """文本路由分类接口。由 Router Agent 判断文本类型。"""
+    return execute_agent_or_fallback(router_agent, "route_dict", asdict(payload), fallback_router)
 
 
 @app.post("/emotion")
-def emotion(payload: TextInput) -> dict[str, Any]:
-    return _execute_agent_or_fallback(emotion_agent, "emotionRe_dict", payload.model_dump(), _fallback_emotion)
+def emotion(payload: BaseTextInput) -> dict[str, Any]:
+    """情感识别接口。由 Emotion Agent 进行情感识别。"""
+    return execute_agent_or_fallback(emotion_agent, "emotionRe_dict", asdict(payload), fallback_emotion)
 
 
 @app.post("/sarcasm")
-def sarcasm(payload: TextInput) -> dict[str, Any]:
-    return _execute_agent_or_fallback(sarcasm_agent, "detect_dict", payload.model_dump(), _fallback_sarcasm)
+def sarcasm(payload: BaseTextInput) -> dict[str, Any]:
+    """反讽检测接口。由 Sarcasm Agent 检测反讽。"""
+    return execute_agent_or_fallback(sarcasm_agent, "detect_dict", asdict(payload), fallback_sarcasm)
 
 
 @app.post("/mix")
-def mix(payload: TextInput) -> dict[str, Any]:
-    return _execute_agent_or_fallback(mix_agent, "mixRe_dict", payload.model_dump(), _fallback_mix)
+def mix(payload: BaseTextInput) -> dict[str, Any]:
+    """混合情绪分析接口。由 Mix Agent 判断是否包含混合情绪。"""
+    return execute_agent_or_fallback(mix_agent, "mixRe_dict", asdict(payload), fallback_mix)
 
 
 @app.post("/judge")
-def judge(payload: JudgeInputPayload) -> dict[str, Any]:
-    return _execute_agent_or_fallback(judge_agent, "judge_dict", payload.model_dump(), _fallback_judge)
+def judge(payload: JudgeInput) -> dict[str, Any]:
+    """最终裁决接口。由 Judge Agent 综合裁决。"""
+    return execute_agent_or_fallback(judge_agent, "judge_dict", asdict(payload), fallback_judge)
 
 
 @app.post("/chat")
-def chat(payload: ChatInputPayload) -> dict[str, Any]:
-    return _execute_agent(chat_agent, "chat_dict", payload.model_dump())
+def chat(payload: ChatInput) -> dict[str, Any]:
+    """聊天回复生成接口。由 Chat Agent 生成回复。"""
+    return execute_agent(chat_agent, "chat_dict", asdict(payload))
+
+
+@app.post("/profile")
+def profile(payload: ProfileInput) -> dict[str, Any]:
+    """用户情绪画像接口（纯统计，不调用 LLM）。"""
+    try:
+        records = payload.emotion_records
+        features = extract_features(records)
+        viz = build_visualization_data(features, records)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "total_records": features.get("total_records", 0),
+        "emotion_distribution": features.get("emotion_distribution", {}),
+        "avg_intensity": features.get("avg_intensity", 0.0),
+        "avg_confidence": features.get("avg_confidence", 0.0),
+        "sarcasm_rate": features.get("sarcasm_rate", 0.0),
+        "mixed_rate": features.get("mixed_rate", 0.0),
+        "dominant_emotion": features.get("dominant_emotion", "中性"),
+        "intensity_trend": features.get("intensity_trend", "平稳"),
+        "activity_pattern": features.get("activity_pattern", {}),
+        "radar_chart": viz.get("radar_chart", {}),
+        "timeline": viz.get("timeline", {}),
+        "intensity_distribution": viz.get("intensity_distribution", {}),
+    }
+
+
+@app.post("/profile/generate")
+def profile_generate(payload: ProfileInput) -> dict[str, Any]:
+    """用户情绪画像接口（含 LLM 生成）。"""
+    return execute_agent_or_fallback(
+        profile_agent, "generate_dict", asdict(payload), fallback_profile
+    )

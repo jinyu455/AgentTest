@@ -9,7 +9,8 @@ AGENTS_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENTS_ROOT))
 
-from mix_agent import HTTPMixLLMClient, LLMConfig, MixAgent
+from base.llm_config import LLMConfig
+from mix_agent import HTTPMixLLMClient, MixAgent
 
 
 def load_api_key() -> str:

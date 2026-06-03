@@ -10,7 +10,8 @@ AGENTS_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENTS_ROOT))
 
-from judge_agent import HTTPJudgeLLMClient, JudgeAgent, LLMConfig
+from base.llm_config import LLMConfig
+from judge_agent import HTTPJudgeLLMClient, JudgeAgent
 
 
 def load_api_key() -> str:

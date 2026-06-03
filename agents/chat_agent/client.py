@@ -1,53 +1,37 @@
+"""Chat Agent 的 HTTP 客户端实现。
+
+通过 OpenAI 兼容的 HTTP 接口调用大语言模型，生成情绪聊天回复。
+"""
+
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
 from typing import Any
 
-from llm_http import post_json_with_retries
+from base.base_client import BaseHTTPLLMClient
 from .llm_agent import SYSTEM_PROMPT, build_chat_user_prompt
 from .schemas import ChatInput
 
 
-@dataclass(slots=True)
-class LLMConfig:
-    base_url: str = "https://your-llm-service.example.com/v1/chat/completions"
-    api_key: str = "YOUR_API_KEY"
-    model: str = "YOUR_MODEL_NAME"
-    timeout_seconds: int = 30
+class HTTPChatLLMClient(BaseHTTPLLMClient):
+    """基于 HTTP 的 Chat Agent 大模型客户端。
 
-
-class HTTPChatLLMClient:
-    """Generic OpenAI-compatible client for Chat Agent response generation."""
-
-    def __init__(self, config: LLMConfig) -> None:
-        self.config = config
+    继承 BaseHTTPLLMClient，使用 OpenAI 兼容协议与大模型通信，
+    专门用于情绪聊天回复的生成场景。
+    """
 
     def generate(self, payload: ChatInput) -> dict[str, Any]:
-        body = {
-            "model": self.config.model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": build_chat_user_prompt(payload)},
-            ],
-            "temperature": 0.4,
-            "response_format": {"type": "json_object"},
-        }
-        raw_text = post_json_with_retries(
-            self.config.base_url,
-            body,
-            self.config.api_key,
-            self.config.timeout_seconds,
-        )
+        """根据聊天输入生成回复。
 
-        return self._extract_result(raw_text)
+        使用 build_chat_user_prompt 构建用户提示词，配合系统提示词
+        调用大模型，返回原始 JSON 结果。
 
-    def _extract_result(self, raw_text: str) -> dict[str, Any]:
-        data = json.loads(raw_text)
-        content = data["choices"][0]["message"]["content"]
+        Args:
+            payload: 聊天输入数据，包含用户消息、历史记录和情绪分析结果。
 
-        if isinstance(content, list):
-            text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
-            content = "".join(text_parts)
-
-        return json.loads(content)
+        Returns:
+            大模型返回的原始字典结果，包含 reply、tone、risk_hint 等字段。
+        """
+        # 使用模块级函数构建用户提示词，便于在 Agent 中复用
+        user_prompt = build_chat_user_prompt(payload)
+        # 使用稍高的 temperature（0.4）以获得更自然、多样化的回复
+        return self._call_llm(SYSTEM_PROMPT, user_prompt, temperature=0.4)

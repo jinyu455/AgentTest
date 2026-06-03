@@ -39,7 +39,7 @@ class MixAgentTestCase(unittest.TestCase):
                 "primary_emotion": "疲惫",
                 "secondary_emotion": "开心",
                 "mix_ratio": {"疲惫": 0.58, "开心": 0.42},
-                "revised_intensity": 57,
+                "adjusted_intensity": 57,
                 "confidence": 0.79,
                 "reason": "句子存在转折结构，后半句突出疲惫感。",
             }
@@ -51,7 +51,7 @@ class MixAgentTestCase(unittest.TestCase):
         self.assertTrue(result.is_mixed)
         self.assertEqual(result.primary_emotion, "疲惫")
         self.assertEqual(result.secondary_emotion, "开心")
-        self.assertEqual(result.revised_intensity, 57)
+        self.assertEqual(result.adjusted_intensity, 57)
         self.assertAlmostEqual(result.mix_ratio["疲惫"], 0.58)
         self.assertEqual(client.last_payload.text, "开心是开心，但也挺累")
 
@@ -62,7 +62,7 @@ class MixAgentTestCase(unittest.TestCase):
                 "primary_emotion": "空虚",
                 "secondary_emotion": "开心",
                 "mix_ratio": {"空虚": 0.61, "开心": 0.39},
-                "revised_intensity": 48,
+                "adjusted_intensity": 48,
                 "confidence": 0.72,
                 "reason": "结束后出现轻松与空落并存。",
             }
@@ -82,7 +82,7 @@ class MixAgentTestCase(unittest.TestCase):
                 "primary_emotion": "中性",
                 "secondary_emotion": "中性",
                 "mix_ratio": {"中性": 1.0},
-                "revised_intensity": 20,
+                "adjusted_intensity": 20,
                 "confidence": 0.52,
                 "reason": "无明显复合情绪。",
             }
@@ -103,7 +103,7 @@ class MixAgentTestCase(unittest.TestCase):
                 "primary_emotion": "激动",
                 "secondary_emotion": "开心",
                 "mix_ratio": {"激动": 0.5, "开心": 0.5},
-                "revised_intensity": 50,
+                "adjusted_intensity": 50,
                 "confidence": 0.7,
                 "reason": "非法标签。",
             }
@@ -120,7 +120,7 @@ class MixAgentTestCase(unittest.TestCase):
                 "primary_emotion": "疲惫",
                 "secondary_emotion": "开心",
                 "mix_ratio": {"疲惫": 0.7, "开心": 0.5},
-                "revised_intensity": 60,
+                "adjusted_intensity": 60,
                 "confidence": 0.8,
                 "reason": "比例总和异常。",
             }
@@ -137,7 +137,7 @@ class MixAgentTestCase(unittest.TestCase):
                 "primary_emotion": "疲惫",
                 "secondary_emotion": "开心",
                 "mix_ratio": {"疲惫": 0.58, "开心": 0.42},
-                "revised_intensity": 57,
+                "adjusted_intensity": 57,
                 "confidence": 0.79,
                 "reason": "布尔类型错误。",
             }

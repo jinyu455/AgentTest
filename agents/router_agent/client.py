@@ -1,58 +1,35 @@
+"""路由代理的 HTTP LLM 客户端。
+
+封装了与 OpenAI 兼容 API 的通信逻辑，负责将路由输入
+序列化为提示词并发送给大语言模型，获取分类结果。
+"""
+
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, dataclass
+from typing import Any
 
-from llm_http import post_json_with_retries
-from .llm_agent import SYSTEM_PROMPT
+from base.base_client import BaseHTTPLLMClient
+from .llm_agent import SYSTEM_PROMPT, build_router_user_prompt
 from .schemas import RouterInput
 
 
-@dataclass(slots=True)
-class LLMConfig:
-    base_url: str = "https://your-llm-service.example.com/v1/chat/completions"
-    api_key: str = "YOUR_API_KEY"
-    model: str = "YOUR_MODEL_NAME"
-    timeout_seconds: int = 30
+class HTTPRouterLLMClient(BaseHTTPLLMClient):
+    """基于 HTTP 的路由代理大模型客户端。
 
-
-class HTTPRouterLLMClient:
-    """Generic OpenAI-compatible client with placeholder config."""
-
-    def __init__(self, config: LLMConfig) -> None:
-        self.config = config
+    继承自 BaseHTTPLLMClient，复用其 LLM 连接管理能力，
+    提供 classify 方法将消息发送给大模型进行路由分类。
+    """
 
     def classify(self, payload: RouterInput) -> dict:
-        body = {
-            "model": self.config.model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": self._build_user_prompt(payload)},
-            ],
-            "temperature": 0.1,
-            "response_format": {"type": "json_object"},
-        }
-        raw_text = post_json_with_retries(
-            self.config.base_url,
-            body,
-            self.config.api_key,
-            self.config.timeout_seconds,
-        )
+        """将路由输入发送给大模型，返回原始 JSON 分类结果。
 
-        return self._extract_result(raw_text)
+        Args:
+            payload: 待分类的路由输入数据。
 
-    def _build_user_prompt(self, payload: RouterInput) -> str:
-        return (
-            "请判断下面这条消息的路由类型，并给出 JSON 结果。\n\n"
-            f"{json.dumps(asdict(payload), ensure_ascii=False, indent=2)}"
-        )
-
-    def _extract_result(self, raw_text: str) -> dict:
-        data = json.loads(raw_text)
-        content = data["choices"][0]["message"]["content"]
-
-        if isinstance(content, list):
-            text_parts = [part.get("text", "") for part in content if part.get("type") == "text"]
-            content = "".join(text_parts)
-
-        return json.loads(content)
+        Returns:
+            大模型返回的原始字典结果，包含 sample_type 等字段。
+        """
+        # 复用 llm_agent 中的 prompt 构建函数
+        user_prompt = build_router_user_prompt(payload)
+        # 使用较低的 temperature 确保分类结果稳定一致
+        return self._call_llm(SYSTEM_PROMPT, user_prompt, temperature=0.1)

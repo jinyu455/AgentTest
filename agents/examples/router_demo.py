@@ -9,7 +9,8 @@ AGENTS_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENTS_ROOT))
 
-from router_agent import HTTPRouterLLMClient, LLMConfig, RouterAgent
+from base.llm_config import LLMConfig
+from router_agent import HTTPRouterLLMClient, RouterAgent
 
 
 def load_api_key() -> str:

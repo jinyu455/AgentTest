@@ -9,7 +9,8 @@ AGENTS_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(AGENTS_ROOT))
 
-from emotion_agent import EmotionAgent, HTTPEmotionLLMClient, LLMConfig
+from base.llm_config import LLMConfig
+from emotion_agent import EmotionAgent, HTTPEmotionLLMClient
 
 def load_api_key() -> str:
     env_path = REPO_ROOT / ".env"
