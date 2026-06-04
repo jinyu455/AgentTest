@@ -64,6 +64,22 @@ public class AgentClient {
                 .body(MAP_RESPONSE);
     }
 
+    public Map<String, Object> profile(Map<String, Object> payload) {
+        return restClient.post()
+                .uri("/profile")
+                .body(payload)
+                .retrieve()
+                .body(MAP_RESPONSE);
+    }
+
+    public Map<String, Object> profileGenerate(Map<String, Object> payload) {
+        return restClient.post()
+                .uri("/profile/generate")
+                .body(payload)
+                .retrieve()
+                .body(MAP_RESPONSE);
+    }
+
     private Map<String, Object> postText(String uri, TextAnalyzeRequest request) {
         return restClient.post()
                 .uri(uri)

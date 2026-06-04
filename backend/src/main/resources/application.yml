@@ -20,3 +20,11 @@ spring:
 
 emo-agent:
   base-url: http://127.0.0.1:8000
+
+jwt:
+  secret: emoagent-jwt-secret-key-2024-must-be-at-least-32-bytes
+  expiration: 86400000
+
+admin:
+  username: admin
+  password: admin123

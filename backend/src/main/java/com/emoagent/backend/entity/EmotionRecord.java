@@ -74,4 +74,48 @@ public class EmotionRecord {
         this.rawAnalysisJson = rawAnalysisJson;
         this.createdAt = createdAt;
     }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getConversationId() {
+        return conversationId;
+    }
+
+    public String getMessageId() {
+        return messageId;
+    }
+
+    public String getFinalEmotion() {
+        return finalEmotion;
+    }
+
+    public String getSecondaryEmotion() {
+        return secondaryEmotion;
+    }
+
+    public Integer getFinalIntensity() {
+        return finalIntensity;
+    }
+
+    public Double getFinalConfidence() {
+        return finalConfidence;
+    }
+
+    public Boolean getSarcasm() {
+        return sarcasm;
+    }
+
+    public Boolean getMixed() {
+        return mixed;
+    }
+
+    public String getRawAnalysisJson() {
+        return rawAnalysisJson;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 }
