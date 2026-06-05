@@ -7,9 +7,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
+//两层表结构，通过用户id找到所有对话，再通过对话找到用户的全部情绪记录
 public interface EmotionRecordRepository extends JpaRepository<EmotionRecord, String> {
 
     @Query("SELECT er FROM EmotionRecord er WHERE er.conversationId IN " +
-           "(SELECT c.id FROM Conversation c WHERE c.userId = :userId)")
+            "(SELECT c.id FROM Conversation c WHERE c.userId = :userId)")
     List<EmotionRecord> findByUserId(@Param("userId") String userId);
+
+    // admin 查看所有用户的情绪记录
+    List<EmotionRecord> findAll();
 }

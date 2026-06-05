@@ -40,7 +40,7 @@ public class AuthService {
 
     // 验证码存储：key -> {code, expireAt}
     private final Map<String, CaptchaEntry> captchaStore = new ConcurrentHashMap<>();
-    private static final long CAPTCHA_TTL_MS = 5 * 60 * 1000; // 5 分钟
+    private static final long CAPTCHA_TTL_MS = 5 * 60 * 1000; // 5 分钟自动过期的验证码缓存
 
     public AuthService(UserRepository userRepository, JwtConfig jwtConfig) {
         this.userRepository = userRepository;
@@ -48,6 +48,7 @@ public class AuthService {
         this.signingKey = Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
+    // 第一次启动检查有没有admin没有自动创建
     @PostConstruct
     public void initAdminUser() {
         if (!userRepository.existsByUsername(adminUsername)) {
@@ -60,10 +61,7 @@ public class AuthService {
         }
     }
 
-    // ============================================================
-    // 注册
-    // ============================================================
-
+    // 注册成功不返回token，前端跳转到登录页
     public AuthResponse register(RegisterRequest request) {
         // 1. 校验验证码
         validateCaptcha(request.captchaKey(), request.captchaCode());
@@ -82,16 +80,13 @@ public class AuthService {
         User user = new User(userId, request.username(), passwordHash, salt, "user", Instant.now());
         userRepository.save(user);
 
-        // 5. 生成 JWT
-        String token = generateToken(userId, request.username(), "user");
-        return new AuthResponse(token, userId, request.username(), "user");
+        // 5. 不返回token，返回成功消息，前端跳转登录页
+        return new AuthResponse(null, null, null, null, "注册成功，请登录");
     }
 
-    // ============================================================
-    // 登录
-    // ============================================================
-
-    public AuthResponse login(String username, String password) {
+    // 登录，根据autoLogin决定token有效期
+    // 不勾选自动登录：5分钟，勾选：7天
+    public AuthResponse login(String username, String password, Boolean autoLogin) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
 
@@ -100,14 +95,16 @@ public class AuthService {
             throw new IllegalArgumentException("用户名或密码错误");
         }
 
-        String token = generateToken(user.getId(), user.getUsername(), user.getRole());
-        return new AuthResponse(token, user.getId(), user.getUsername(), user.getRole());
+        // 勾选自动登录7天，否则5分钟
+        long duration = Boolean.TRUE.equals(autoLogin)
+                ? 7 * 24 * 60 * 60 * 1000L   // 7天
+                : 5 * 60 * 1000L;             // 5分钟
+
+        String token = generateToken(user.getId(), user.getUsername(), user.getRole(), duration);
+        return new AuthResponse(token, user.getId(), user.getUsername(), user.getRole(), null);
     }
 
-    // ============================================================
-    // 验证码
-    // ============================================================
-
+    // 生成验证码，4位验证码+唯一key+svg图片
     public CaptchaResponse generateCaptcha() {
         String code = generateRandomCode();
         String key = UUID.randomUUID().toString();
@@ -141,58 +138,59 @@ public class AuthService {
     }
 
     private String generateCaptchaImage(String code) {
-        // 生成简单的验证码 SVG 图片（Base64 编码）
+        // 用字符串拼凑生成简单的验证码 SVG 图片（Base64 编码）
         int width = 120;
         int height = 40;
         StringBuilder svg = new StringBuilder();
         svg.append("<svg xmlns='http://www.w3.org/2000/svg' width='").append(width)
-           .append("' height='").append(height).append("'>");
+                .append("' height='").append(height).append("'>");
         svg.append("<rect width='100%' height='100%' fill='#f0f0f0'/>");
 
-        // 绘制干扰线
+        // 绘制4条随机干扰线
         for (int i = 0; i < 4; i++) {
             int x1 = (int) (Math.random() * width);
             int y1 = (int) (Math.random() * height);
             int x2 = (int) (Math.random() * width);
             int y2 = (int) (Math.random() * height);
             svg.append("<line x1='").append(x1).append("' y1='").append(y1)
-               .append("' x2='").append(x2).append("' y2='").append(y2)
-               .append("' stroke='#ccc' stroke-width='1'/>");
+                    .append("' x2='").append(x2).append("' y2='").append(y2)
+                    .append("' stroke='#ccc' stroke-width='1'/>");
         }
 
-        // 绘制验证码文字
+        // 绘制验证码文字，随机位置，随机颜色，随机旋转（-10° ~ 10°），字体加粗
         for (int i = 0; i < code.length(); i++) {
             int x = 10 + i * 25;
             int y = 25 + (int) (Math.random() * 10 - 5);
             int rotate = (int) (Math.random() * 20 - 10);
-            String[] colors = {"#333", "#666", "#999", "#c00", "#060", "#009"};
+            String[] colors = { "#333", "#666", "#999", "#c00", "#060", "#009" };
             String color = colors[(int) (Math.random() * colors.length)];
             svg.append("<text x='").append(x).append("' y='").append(y)
-               .append("' font-size='22' font-weight='bold' fill='").append(color)
-               .append("' transform='rotate(").append(rotate).append(" ").append(x).append(" ").append(y).append("')")
-               .append("'>").append(code.charAt(i)).append("</text>");
+                    .append("' font-size='22' font-weight='bold' fill='").append(color)
+                    .append("' transform='rotate(").append(rotate).append(" ").append(x).append(" ").append(y)
+                    .append("')")
+                    .append("'>").append(code.charAt(i)).append("</text>");
         }
 
         svg.append("</svg>");
-        return "data:image/svg+xml;base64," + Base64.getEncoder().encodeToString(svg.toString().getBytes(StandardCharsets.UTF_8));
+        // 转成base64,编码一串文本
+        return "data:image/svg+xml;base64,"
+                + Base64.getEncoder().encodeToString(svg.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    // ============================================================
-    // JWT
-    // ============================================================
-
-    public String generateToken(String userId, String username, String role) {
+    // 生成jwt，duration决定过期时间
+    public String generateToken(String userId, String username, String role, long durationMs) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId)
                 .claim("username", username)
                 .claim("role", role)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusMillis(jwtConfig.getExpiration())))
+                .expiration(Date.from(now.plusMillis(durationMs)))
                 .signWith(signingKey)
                 .compact();
     }
 
+    // 验证签名是否正确，验证是否过期，解析出用户信息
     public Claims validateToken(String token) {
         try {
             return Jwts.parser()
@@ -206,10 +204,6 @@ public class AuthService {
             throw new IllegalArgumentException("Token 无效");
         }
     }
-
-    // ============================================================
-    // 内部工具
-    // ============================================================
 
     private String hashPassword(String password, String salt) {
         try {

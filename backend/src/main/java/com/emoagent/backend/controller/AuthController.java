@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+// 所有接口前缀
 @RequestMapping("/api/auth")
 public class AuthController {
 
@@ -27,11 +28,13 @@ public class AuthController {
         return authService.register(request);
     }
 
+    // 返回token，autoLogin决定token有效期
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody AuthRequest request) {
-        return authService.login(request.username(), request.password());
+        return authService.login(request.username(), request.password(), request.autoLogin());
     }
 
+    // 返回SVG Base64图片
     @GetMapping("/captcha")
     public CaptchaResponse captcha() {
         return authService.generateCaptcha();
