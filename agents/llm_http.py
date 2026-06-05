@@ -30,7 +30,7 @@ def post_json_with_retries(
     该函数使用 urllib 标准库发起 HTTP 请求，支持以下容错策略：
     - 对可重试的 HTTP 状态码（如 429 限流、500 服务器错误）自动重试
     - 对网络异常（URL 连接错误、超时）自动重试
-    - 每次重试之间采用指数退避策略（0.4s * 第几次尝试）
+    - 每次重试之间采用指数退避策略（0.4s、0.8s、1.6s……）
 
     Args:
         url: 目标 API 端点 URL
@@ -43,11 +43,15 @@ def post_json_with_retries(
         服务器返回的响应体文本字符串
 
     Raises:
+        ValueError: 当最大尝试次数小于 1 时
         HTTPError: 当请求返回非可重试的 HTTP 错误码时
         URLError: 当网络连接失败且重试次数耗尽时
         TimeoutError: 当请求超时且重试次数耗尽时
     """
-    for attempt in range(max_attempts):
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+
+    for attempt in range(1, max_attempts + 1):
         # 构造 HTTP 请求对象，设置 JSON 格式请求体和 Bearer Token 认证头
         req = request.Request(
             url=url,
@@ -66,10 +70,10 @@ def post_json_with_retries(
             # 非可重试状态码或已达到最大尝试次数，直接抛出异常
             if exc.code not in RETRYABLE_STATUS_CODES or attempt == max_attempts:
                 raise
-        except (URLError, TimeoutError, SocketTimeout) as exc:
+        except (URLError, TimeoutError, SocketTimeout):
             # 网络异常在最后一次尝试后直接抛出
             if attempt == max_attempts:
                 raise
 
-        # 指数退避：等待时间随尝试次数递增（0.4s, 0.8s, 1.2s ...）
-        time.sleep(0.4 * attempt)
+        # 指数退避：等待时间随尝试次数翻倍（0.4s, 0.8s, 1.6s ...）
+        time.sleep(0.4 * (2 ** (attempt - 1)))
