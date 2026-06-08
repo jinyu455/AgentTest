@@ -10,8 +10,14 @@ import java.util.Optional;
 public interface ConversationRepository extends JpaRepository<Conversation, String> {
     Optional<Conversation> findByIdAndUserId(String id, String userId);
 
+    Optional<Conversation> findByUserIdAndTitle(String userId, String title);
+
     List<Conversation> findTop20ByUserIdOrderByUpdatedAtDesc(String userId);
+
+    List<Conversation> findTop20ByUserIdAndTitleNotOrderByUpdatedAtDesc(String userId, String title);
 
     // admin 查看所有用户的最近20条对话
     List<Conversation> findTop20ByOrderByUpdatedAtDesc();
+
+    List<Conversation> findTop20ByTitleNotOrderByUpdatedAtDesc(String title);
 }

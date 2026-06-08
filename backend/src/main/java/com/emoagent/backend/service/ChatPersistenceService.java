@@ -6,9 +6,11 @@ import com.emoagent.backend.dto.ChatRequest;
 import com.emoagent.backend.entity.ChatMessage;
 import com.emoagent.backend.entity.Conversation;
 import com.emoagent.backend.entity.EmotionRecord;
+import com.emoagent.backend.entity.User;
 import com.emoagent.backend.repository.ChatMessageRepository;
 import com.emoagent.backend.repository.ConversationRepository;
 import com.emoagent.backend.repository.EmotionRecordRepository;
+import com.emoagent.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,10 +30,12 @@ import java.util.UUID;
 @Service
 public class ChatPersistenceService {
     private static final int TITLE_MAX_LENGTH = 15;
+    private static final String PROFILE_CONVERSATION_TITLE = "画像采样";
 
     private final ConversationRepository conversationRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final EmotionRecordRepository emotionRecordRepository;
+    private final UserRepository userRepository;
     private final AgentClient agentClient;
     private final ObjectMapper objectMapper;
 
@@ -38,11 +43,13 @@ public class ChatPersistenceService {
             ConversationRepository conversationRepository,
             ChatMessageRepository chatMessageRepository,
             EmotionRecordRepository emotionRecordRepository,
+            UserRepository userRepository,
             AgentClient agentClient,
             ObjectMapper objectMapper) {
         this.conversationRepository = conversationRepository;
         this.chatMessageRepository = chatMessageRepository;
         this.emotionRecordRepository = emotionRecordRepository;
+        this.userRepository = userRepository;
         this.agentClient = agentClient;
         this.objectMapper = objectMapper;
     }
@@ -80,7 +87,9 @@ public class ChatPersistenceService {
     // 为前端提供用户的最近20条对话记录
     @Transactional(readOnly = true)
     public List<Map<String, Object>> conversationsForUser(String userId) {
-        return conversationRepository.findTop20ByUserIdOrderByUpdatedAtDesc(userId).stream()
+        return conversationRepository.findTop20ByUserIdAndTitleNotOrderByUpdatedAtDesc(
+                        userId,
+                        PROFILE_CONVERSATION_TITLE).stream()
                 .map(this::conversationToMap)
                 .toList();
     }
@@ -88,7 +97,7 @@ public class ChatPersistenceService {
     // admin 查看所有用户的最近20条对话记录
     @Transactional(readOnly = true)
     public List<Map<String, Object>> allConversations() {
-        return conversationRepository.findTop20ByOrderByUpdatedAtDesc().stream()
+        return conversationRepository.findTop20ByTitleNotOrderByUpdatedAtDesc(PROFILE_CONVERSATION_TITLE).stream()
                 .map(this::conversationToMap)
                 .toList();
     }
@@ -97,6 +106,7 @@ public class ChatPersistenceService {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", conversation.getId());
         item.put("user_id", conversation.getUserId());
+        item.put("username", userRepository.findById(conversation.getUserId()).map(User::getUsername).orElse(conversation.getUserId()));
         item.put("title", conversation.getTitle());
         item.put("created_at", conversation.getCreatedAt().toString());
         item.put("updated_at", conversation.getUpdatedAt().toString());
@@ -131,6 +141,29 @@ public class ChatPersistenceService {
                 toJson(analysisResult),
                 Instant.now());
         emotionRecordRepository.save(record);
+    }
+
+    @Transactional
+    public void saveStandaloneEmotionRecord(String userId, String text, AnalyzeResponse analysisResult) {
+        Instant now = Instant.now();
+        Conversation conversation = conversationRepository.findByUserIdAndTitle(userId, PROFILE_CONVERSATION_TITLE)
+                .map(existing -> {
+                    existing.touch(now);
+                    return conversationRepository.save(existing);
+                })
+                .orElseGet(() -> conversationRepository.save(new Conversation(
+                        UUID.randomUUID().toString(),
+                        userId,
+                        PROFILE_CONVERSATION_TITLE,
+                        now,
+                        now)));
+        ChatMessage message = chatMessageRepository.save(new ChatMessage(
+                UUID.randomUUID().toString(),
+                conversation.getId(),
+                "user",
+                text,
+                now));
+        saveEmotionRecord(new ChatTurn(conversation.getId(), message.getId()), analysisResult);
     }
 
     // 保存ai回答结果

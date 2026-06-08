@@ -1,0 +1,272 @@
+<main class="app-shell">
+  <aside class="sidebar" aria-label="会话侧栏">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" role="img">
+          <path d="M12 3.2c4.9 0 8.9 3.5 8.9 7.9 0 2.7-1.5 5.1-3.8 6.5l.6 3.2-3.4-1.8c-.7.1-1.5.2-2.3.2-4.9 0-8.9-3.5-8.9-8S7.1 3.2 12 3.2Z" />
+          <path d="M8.5 10.4h.1M12 10.4h.1M15.5 10.4h.1" />
+        </svg>
+      </div>
+      <div>
+        <h1>EmoAgent</h1>
+        <p>情绪聊天助手</p>
+      </div>
+    </div>
+
+    <button class="new-chat" id="newChatButton" type="button">
+      <span aria-hidden="true">+</span>
+      新会话
+    </button>
+
+    <section class="history-panel" aria-label="历史会话">
+      <span class="eyebrow">历史会话</span>
+      <div class="conversation-list" id="conversationList">
+        <p class="empty-history">正在加载历史会话...</p>
+      </div>
+    </section>
+
+    <div class="sidebar-footer">
+      <section class="status-panel" aria-label="服务状态">
+        <div>
+          <span class="eyebrow">后端服务</span>
+          <strong id="serviceStatus">未连接</strong>
+        </div>
+        <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+      </section>
+
+      <section class="user-panel" aria-label="当前用户">
+        <div class="mini-avatar" id="userMiniAvatar" aria-hidden="true">你</div>
+        <div>
+          <span class="eyebrow">当前用户</span>
+          <strong id="currentUsername">未登录</strong>
+          <small id="currentUserRole">user</small>
+        </div>
+        <button id="logoutButton" type="button">退出</button>
+      </section>
+    </div>
+  </aside>
+
+  <section class="history-page" id="historyPage" aria-label="历史情绪变化页面" hidden>
+    <header class="history-page-header">
+      <button class="back-button" id="backToChatButton" type="button" aria-label="返回聊天">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M19 12H5" />
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+      </button>
+      <div>
+        <span class="eyebrow">历史情绪变化</span>
+        <h2>情绪趋势</h2>
+      </div>
+      <button class="refresh-history-button" id="refreshHistoryButton" type="button">刷新</button>
+    </header>
+
+    <section class="history-summary-grid">
+      <div>
+        <span>记录数</span>
+        <strong id="historyTotalRecords">--</strong>
+      </div>
+      <div>
+        <span>主导情绪</span>
+        <strong id="historyDominantEmotion">--</strong>
+      </div>
+      <div>
+        <span>平均强度</span>
+        <strong id="historyAvgIntensity">--</strong>
+      </div>
+      <div>
+        <span>平均置信度</span>
+        <strong id="historyAvgConfidence">--</strong>
+      </div>
+    </section>
+
+    <section class="combo-chart-card">
+      <div class="chart-heading">
+        <div>
+          <span class="eyebrow">组合图</span>
+          <h3>情绪强度走势</h3>
+        </div>
+      </div>
+      <div class="combo-chart" id="emotionComboChart" role="img" aria-label="情绪强度趋势和分布图"></div>
+    </section>
+
+    <section class="history-detail-grid">
+      <div>
+        <span class="eyebrow">情绪分布</span>
+        <div class="emotion-distribution-list" id="emotionDistributionList"></div>
+      </div>
+      <div>
+        <span class="eyebrow">活跃时段</span>
+        <div class="activity-list" id="activityPatternList"></div>
+      </div>
+    </section>
+
+    <p class="history-status" id="historyStatus"></p>
+  </section>
+
+  <section class="chat-panel" aria-label="聊天区域">
+    <header class="chat-header">
+      <div>
+        <span class="eyebrow">当前会话</span>
+        <h2 id="conversationTitle">开始一次情绪对话</h2>
+      </div>
+    </header>
+
+    <div class="message-list" id="messageList" aria-live="polite">
+      <article class="message assistant">
+        <div class="avatar" aria-hidden="true">E</div>
+        <div class="bubble">
+          <p>你好，我会先理解你的情绪，再给出更贴近当下状态的回应。把想说的话发给我就好。</p>
+        </div>
+      </article>
+    </div>
+
+    <form class="composer" id="chatForm">
+      <textarea
+        id="messageInput"
+        rows="1"
+        maxlength="2000"
+        placeholder="输入你现在想说的话..."
+        aria-label="聊天输入"
+      ></textarea>
+      <button class="send-button" id="sendButton" type="submit" aria-label="发送消息">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m22 2-7 20-4-9-9-4 20-7Z" />
+          <path d="M22 2 11 13" />
+        </svg>
+      </button>
+    </form>
+  </section>
+
+  <aside class="insight-panel" aria-label="情绪洞察">
+    <div class="panel-heading">
+      <span class="eyebrow">实时分析</span>
+      <h2>情绪洞察</h2>
+    </div>
+
+    <section class="emotion-card">
+      <div class="emotion-topline">
+        <span id="primaryEmotion">等待输入</span>
+        <strong id="emotionIntensity">--</strong>
+      </div>
+      <div class="meter" aria-hidden="true">
+        <span id="emotionMeter"></span>
+      </div>
+      <p id="emotionMeta">发送消息后会展示情绪、强度和置信度。</p>
+    </section>
+
+    <section class="insight-grid">
+      <div>
+        <span>次级情绪</span>
+        <strong id="secondaryEmotion">--</strong>
+      </div>
+      <div>
+        <span>置信度</span>
+        <strong id="confidenceValue">--</strong>
+      </div>
+      <div>
+        <span>反讽</span>
+        <strong id="sarcasmValue">--</strong>
+      </div>
+      <div>
+        <span>混合情绪</span>
+        <strong id="mixedValue">--</strong>
+      </div>
+    </section>
+
+    <button class="history-jump-button" id="openHistoryButton" type="button">
+      <span>查看历史情绪变化</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12h14" />
+        <path d="m13 6 6 6-6 6" />
+      </svg>
+    </button>
+  </aside>
+
+  <section class="admin-dashboard" id="adminDashboard" aria-label="管理员仪表盘" hidden>
+    <header class="admin-header">
+      <div>
+        <span class="eyebrow">管理员工作台</span>
+        <h2>用户情绪画像</h2>
+      </div>
+      <div class="admin-actions">
+        <button class="refresh-history-button" id="refreshAdminButton" type="button">生成画像</button>
+        <button class="admin-logout-button" id="adminLogoutButton" type="button">退出</button>
+      </div>
+    </header>
+
+    <section class="admin-user-card">
+      <div>
+        <span class="eyebrow">画像对象</span>
+        <h3 id="adminTargetLabel">请选择一个用户</h3>
+        <label class="admin-user-search">
+          <span>昵称查询</span>
+          <div class="admin-user-search-control">
+            <input id="adminUserSearch" type="search" autocomplete="off" placeholder="输入用户昵称" />
+            <button id="adminUserSearchButton" type="button" aria-label="搜索用户">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m16.5 16.5 4 4" />
+              </svg>
+            </button>
+          </div>
+        </label>
+      </div>
+      <div class="admin-user-list" id="adminUserList"></div>
+    </section>
+
+    <section class="history-summary-grid admin-summary-grid">
+      <div>
+        <span>样本记录</span>
+        <strong id="adminTotalRecords">--</strong>
+      </div>
+      <div>
+        <span>主导情绪</span>
+        <strong id="adminDominantEmotion">--</strong>
+      </div>
+      <div>
+        <span>平均强度</span>
+        <strong id="adminAvgIntensity">--</strong>
+      </div>
+      <div>
+        <span>MBTI 推断</span>
+        <strong id="adminMbti">--</strong>
+      </div>
+    </section>
+
+    <section class="admin-profile-card">
+      <div>
+        <span class="eyebrow">画像摘要</span>
+        <h3 id="adminSummary">等待生成</h3>
+      </div>
+      <div class="admin-traits" id="adminTraits"></div>
+      <div class="admin-copy-grid">
+        <p><strong>沟通风格</strong><span id="adminCommunicationStyle">--</span></p>
+        <p><strong>情绪模式</strong><span id="adminEmotionalPatterns">--</span></p>
+      </div>
+    </section>
+
+    <section class="combo-chart-card">
+      <div class="chart-heading">
+        <div>
+          <span class="eyebrow">组合图</span>
+          <h3>情绪强度走势</h3>
+        </div>
+      </div>
+      <div class="combo-chart" id="adminComboChart" role="img" aria-label="管理员用户情绪强度组合图"></div>
+    </section>
+
+    <section class="history-detail-grid admin-detail-grid">
+      <div>
+        <span class="eyebrow">情绪分布</span>
+        <div class="emotion-distribution-list" id="adminEmotionDistributionList"></div>
+      </div>
+      <div>
+        <span class="eyebrow">活跃时段</span>
+        <div class="activity-list" id="adminActivityPatternList"></div>
+      </div>
+    </section>
+
+    <p class="history-status" id="adminStatus"></p>
+  </section>
+</main>

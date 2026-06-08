@@ -70,3 +70,5 @@ agents/service/.python-version
 .vscode
 .pycharm
 .__pycache__
+
+start.md

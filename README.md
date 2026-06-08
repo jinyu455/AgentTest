@@ -46,6 +46,12 @@ cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
+再启动 Web 前端：
+```powershell
+cd frontend
+python -m http.server 5173
+```
+
 默认地址：
 
 - Agent 服务: `http://127.0.0.1:8000`
