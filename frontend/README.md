@@ -18,9 +18,10 @@ frontend/
     tokens.css            # 变量、基础 reset
     auth.css              # 登录 / 注册页样式
     layout.css            # 三栏布局和通用组件样式
-    sidebar.css           # 左侧栏、历史会话、设置和状态样式
+    sidebar.css           # 左侧栏、历史会话、服务状态和用户卡片样式
     chat.css              # 聊天区、消息、输入框样式
-    insights.css          # 情绪洞察和画像卡片样式
+    insights.css          # 右侧实时情绪洞察样式
+    history.css           # 历史情绪变化页面和图表样式
     responsive.css        # 响应式规则
 ```
 

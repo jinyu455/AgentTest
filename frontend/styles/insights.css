@@ -6,51 +6,10 @@
   font-size: 1.2rem;
 }
 
-.profile-card {
-  padding: 16px;
-  background:
-    linear-gradient(135deg, rgba(67, 111, 176, 0.09), transparent),
-    rgba(255, 255, 255, 0.62);
-}
-
-.profile-top {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-}
-
-.profile-avatar {
-  display: grid;
-  width: 76px;
-  height: 76px;
-  place-items: center;
-  overflow: hidden;
-  border: 3px solid rgba(255, 255, 255, 0.86);
-  border-radius: 24px;
-  color: white;
-  background: var(--accent);
-  box-shadow: 0 16px 34px rgba(47, 43, 36, 0.14);
-  font-size: 1.35rem;
-  font-weight: 900;
-}
-
-.profile-avatar svg,
 .mini-avatar svg {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.profile-top strong {
-  display: block;
-  font-size: 1.08rem;
-}
-
-.profile-top p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  line-height: 1.55;
 }
 
 .trait-list {
@@ -126,28 +85,28 @@
   font-size: 1rem;
 }
 
-.raw-card {
-  overflow: hidden;
-}
-
-.raw-toggle {
+.history-jump-button {
   display: flex;
   width: 100%;
+  min-height: 54px;
   align-items: center;
   justify-content: space-between;
-  border: 0;
-  padding: 14px;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.7);
   font-weight: 800;
 }
 
-.raw-card pre {
-  max-height: 360px;
-  margin: 0;
-  overflow: auto;
-  border-top: 1px solid var(--line);
-  padding: 14px;
-  color: #34323a;
-  font-size: 0.78rem;
-  line-height: 1.55;
-  white-space: pre-wrap;
+.history-jump-button svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }

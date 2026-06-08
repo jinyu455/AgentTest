@@ -6,6 +6,7 @@ import com.emoagent.backend.entity.ChatMessage;
 import com.emoagent.backend.repository.ChatMessageRepository;
 import com.emoagent.backend.repository.ConversationRepository;
 import com.emoagent.backend.repository.EmotionRecordRepository;
+import com.emoagent.backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -34,6 +35,9 @@ class ChatPersistenceServiceTests {
 
     @Mock
     private EmotionRecordRepository emotionRecordRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private AgentClient agentClient;
@@ -98,6 +102,7 @@ class ChatPersistenceServiceTests {
                 conversationRepository,
                 chatMessageRepository,
                 emotionRecordRepository,
+                userRepository,
                 agentClient,
                 new ObjectMapper()
         );

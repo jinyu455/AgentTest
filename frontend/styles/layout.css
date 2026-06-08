@@ -2,13 +2,15 @@
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 320px;
   gap: 18px;
-  height: 100vh;
+  min-height: 100vh;
   padding: 18px;
 }
 
 .sidebar,
 .chat-panel,
-.insight-panel {
+.insight-panel,
+.history-page,
+.admin-dashboard {
   min-height: 0;
   border: 1px solid rgba(32, 32, 39, 0.08);
   background: rgba(255, 250, 242, 0.86);
@@ -43,8 +45,8 @@
 
 .brand-mark svg,
 .send-button svg,
-.setting-row button svg,
-.raw-toggle svg {
+.history-jump-button svg,
+.back-button svg {
   width: 22px;
   height: 22px;
   fill: none;
@@ -82,7 +84,10 @@
 .status-panel,
 .emotion-card,
 .profile-card,
-.raw-card,
+.history-summary-grid > div,
+.history-detail-grid > div,
+.admin-profile-card,
+.combo-chart-card,
 .insight-grid > div {
   border: 1px solid var(--line);
   border-radius: 18px;

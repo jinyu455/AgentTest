@@ -6,9 +6,11 @@ import com.emoagent.backend.dto.ChatRequest;
 import com.emoagent.backend.entity.ChatMessage;
 import com.emoagent.backend.entity.Conversation;
 import com.emoagent.backend.entity.EmotionRecord;
+import com.emoagent.backend.entity.User;
 import com.emoagent.backend.repository.ChatMessageRepository;
 import com.emoagent.backend.repository.ConversationRepository;
 import com.emoagent.backend.repository.EmotionRecordRepository;
+import com.emoagent.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,7 @@ public class ChatPersistenceService {
     private final ConversationRepository conversationRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final EmotionRecordRepository emotionRecordRepository;
+    private final UserRepository userRepository;
     private final AgentClient agentClient;
     private final ObjectMapper objectMapper;
 
@@ -40,11 +43,13 @@ public class ChatPersistenceService {
             ConversationRepository conversationRepository,
             ChatMessageRepository chatMessageRepository,
             EmotionRecordRepository emotionRecordRepository,
+            UserRepository userRepository,
             AgentClient agentClient,
             ObjectMapper objectMapper) {
         this.conversationRepository = conversationRepository;
         this.chatMessageRepository = chatMessageRepository;
         this.emotionRecordRepository = emotionRecordRepository;
+        this.userRepository = userRepository;
         this.agentClient = agentClient;
         this.objectMapper = objectMapper;
     }
@@ -101,6 +106,7 @@ public class ChatPersistenceService {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", conversation.getId());
         item.put("user_id", conversation.getUserId());
+        item.put("username", userRepository.findById(conversation.getUserId()).map(User::getUsername).orElse(conversation.getUserId()));
         item.put("title", conversation.getTitle());
         item.put("created_at", conversation.getCreatedAt().toString());
         item.put("updated_at", conversation.getUpdatedAt().toString());

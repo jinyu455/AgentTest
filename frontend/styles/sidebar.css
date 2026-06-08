@@ -58,6 +58,7 @@
 
 .history-panel {
   min-height: 0;
+  flex: 0 1 auto;
 }
 
 .conversation-list {
@@ -137,50 +138,14 @@
   box-shadow: 0 0 0 5px rgba(216, 95, 73, 0.16);
 }
 
-.settings {
+.sidebar-footer {
   margin-top: auto;
-}
-
-.settings label {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 750;
-}
-
-.setting-row {
   display: grid;
-  grid-template-columns: 1fr 42px;
-  gap: 8px;
+  gap: 16px;
+  padding-top: 18px;
 }
 
-.setting-row input {
-  min-width: 0;
-  height: 42px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 0 12px;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.72);
-  outline: none;
-}
-
-.setting-row input:focus,
 .composer textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(19, 122, 116, 0.13);
-}
-
-.setting-row button,
-.raw-toggle {
-  border: 1px solid var(--line);
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.setting-row button {
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
 }

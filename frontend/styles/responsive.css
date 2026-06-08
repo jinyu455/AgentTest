@@ -10,6 +10,14 @@
   .insight-panel {
     display: none;
   }
+
+  .history-page {
+    grid-column: 2;
+  }
+
+  .admin-dashboard {
+    grid-column: 1 / 3;
+  }
 }
 
 @media (max-width: 780px) {
@@ -37,7 +45,7 @@
     min-height: auto;
   }
 
-  .settings {
+  .sidebar-footer {
     margin-top: 0;
   }
 
@@ -61,5 +69,42 @@
 
   .conversation-id {
     max-width: 100%;
+  }
+
+  .history-page {
+    grid-column: 1;
+    padding: 16px;
+  }
+
+  .admin-dashboard {
+    grid-column: 1;
+    padding: 16px;
+  }
+
+  .history-summary-grid,
+  .history-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-page-header {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .refresh-history-button {
+    grid-column: 1 / -1;
+  }
+
+  .admin-header,
+  .admin-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-copy-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-user-card {
+    grid-template-columns: 1fr;
   }
 }

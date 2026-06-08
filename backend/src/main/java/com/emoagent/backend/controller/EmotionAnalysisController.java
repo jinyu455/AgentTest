@@ -100,8 +100,8 @@ public class EmotionAnalysisController {
 
         String effectiveUserId = userId;
         // admin：指定了用户就查该用户，没指定就查全部
-        if ("admin".equals(role) && targetUserId != null && !targetUserId.isBlank()) {
-            effectiveUserId = targetUserId;
+        if ("admin".equals(role)) {
+            effectiveUserId = targetUserId != null && !targetUserId.isBlank() ? targetUserId : null;
         }
         return chatPersistenceService.profile(effectiveUserId);
     }
@@ -116,8 +116,8 @@ public class EmotionAnalysisController {
         String userId = (String) httpRequest.getAttribute(JwtAuthFilter.ATTR_USER_ID);
         String effectiveUserId = userId;
         // admin：指定了用户就查该用户，没指定就查全部
-        if ("admin".equals(role) && targetUserId != null && !targetUserId.isBlank()) {
-            effectiveUserId = targetUserId;
+        if ("admin".equals(role)) {
+            effectiveUserId = targetUserId != null && !targetUserId.isBlank() ? targetUserId : null;
         }
         return chatPersistenceService.profileGenerate(effectiveUserId);
     }

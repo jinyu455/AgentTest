@@ -1,6 +1,7 @@
 .chat-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: calc(100vh - 36px);
   overflow: hidden;
   border-radius: 28px;
 }
