@@ -14,6 +14,10 @@ public interface EmotionRecordRepository extends JpaRepository<EmotionRecord, St
             "(SELECT c.id FROM Conversation c WHERE c.userId = :userId)")
     List<EmotionRecord> findByUserId(@Param("userId") String userId);
 
+    @Query("SELECT COUNT(er) FROM EmotionRecord er WHERE er.conversationId IN " +
+            "(SELECT c.id FROM Conversation c WHERE c.userId = :userId)")
+    long countByUserId(@Param("userId") String userId);
+
     // admin 查看所有用户的情绪记录
     List<EmotionRecord> findAll();
 }

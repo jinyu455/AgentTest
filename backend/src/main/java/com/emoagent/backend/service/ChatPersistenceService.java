@@ -7,9 +7,11 @@ import com.emoagent.backend.entity.ChatMessage;
 import com.emoagent.backend.entity.Conversation;
 import com.emoagent.backend.entity.EmotionRecord;
 import com.emoagent.backend.entity.User;
+import com.emoagent.backend.entity.UserProfile;
 import com.emoagent.backend.repository.ChatMessageRepository;
 import com.emoagent.backend.repository.ConversationRepository;
 import com.emoagent.backend.repository.EmotionRecordRepository;
+import com.emoagent.backend.repository.UserProfileRepository;
 import com.emoagent.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -31,10 +33,12 @@ import java.util.UUID;
 public class ChatPersistenceService {
     private static final int TITLE_MAX_LENGTH = 15;
     private static final String PROFILE_CONVERSATION_TITLE = "画像采样";
+    private static final int PROFILE_UPDATE_THRESHOLD = 10;
 
     private final ConversationRepository conversationRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final EmotionRecordRepository emotionRecordRepository;
+    private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
     private final AgentClient agentClient;
     private final ObjectMapper objectMapper;
@@ -43,12 +47,14 @@ public class ChatPersistenceService {
             ConversationRepository conversationRepository,
             ChatMessageRepository chatMessageRepository,
             EmotionRecordRepository emotionRecordRepository,
+            UserProfileRepository userProfileRepository,
             UserRepository userRepository,
             AgentClient agentClient,
             ObjectMapper objectMapper) {
         this.conversationRepository = conversationRepository;
         this.chatMessageRepository = chatMessageRepository;
         this.emotionRecordRepository = emotionRecordRepository;
+        this.userProfileRepository = userProfileRepository;
         this.userRepository = userRepository;
         this.agentClient = agentClient;
         this.objectMapper = objectMapper;
@@ -332,9 +338,69 @@ public class ChatPersistenceService {
         return agentClient.profile(buildProfilePayload(userId));
     }
 
-    // 生成用户画像（调用大模型）
+    // 生成用户画像（调用大模型），只有新增情绪记录满10条才重新生成
     @Transactional
     public Map<String, Object> profileGenerate(String userId) {
-        return agentClient.profileGenerate(buildProfilePayload(userId));
+        // 获取当前情绪记录总数
+        long currentCount = emotionRecordRepository.countByUserId(userId);
+
+        // 检查是否已有缓存的画像
+        return userProfileRepository.findByUserId(userId)
+                .map(existing -> {
+                    // 计算新增记录数
+                    long newRecordsCount = currentCount - existing.getRecordCount();
+                    if (newRecordsCount >= PROFILE_UPDATE_THRESHOLD) {
+                        // 新增满10条，重新生成
+                        return regenerateProfile(userId, currentCount);
+                    }
+                    // 不满10条，返回缓存的画像
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("user_id", userId);
+                    result.put("profile", existing.getProfileData());
+                    result.put("record_count", existing.getRecordCount());
+                    result.put("cached", true);
+                    return result;
+                })
+                .orElseGet(() -> {
+                    // 没有缓存，首次生成
+                    if (currentCount == 0) {
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("user_id", userId);
+                        result.put("profile", "");
+                        result.put("record_count", 0);
+                        result.put("cached", false);
+                        return result;
+                    }
+                    return regenerateProfile(userId, currentCount);
+                });
+    }
+
+    private Map<String, Object> regenerateProfile(String userId, long recordCount) {
+        Map<String, Object> payload = buildProfilePayload(userId);
+        Map<String, Object> result = agentClient.profileGenerate(payload);
+
+        // Python 返回的是完整画像结构，直接序列化存库
+        String profileContent = toJson(result);
+
+        Instant now = Instant.now();
+        userProfileRepository.findByUserId(userId)
+                .map(existing -> {
+                    existing.setProfileData(profileContent);
+                    existing.setRecordCount((int) recordCount);
+                    existing.setUpdatedAt(now);
+                    return userProfileRepository.save(existing);
+                })
+                .orElseGet(() -> userProfileRepository.save(new UserProfile(
+                        UUID.randomUUID().toString(),
+                        userId,
+                        profileContent,
+                        (int) recordCount,
+                        now,
+                        now)));
+
+        result.put("user_id", userId);
+        result.put("record_count", recordCount);
+        result.put("cached", false);
+        return result;
     }
 }
