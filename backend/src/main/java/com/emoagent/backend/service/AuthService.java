@@ -167,8 +167,8 @@ public class AuthService {
             svg.append("<text x='").append(x).append("' y='").append(y)
                     .append("' font-size='22' font-weight='bold' fill='").append(color)
                     .append("' transform='rotate(").append(rotate).append(" ").append(x).append(" ").append(y)
-                    .append("')")
-                    .append("'>").append(code.charAt(i)).append("</text>");
+                    .append(")'")
+                    .append(">").append(code.charAt(i)).append("</text>");
         }
 
         svg.append("</svg>");

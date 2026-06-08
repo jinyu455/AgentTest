@@ -44,7 +44,9 @@ public class EmotionAnalysisController {
         String userId = (String) httpRequest.getAttribute(JwtAuthFilter.ATTR_USER_ID);
         TextAnalyzeRequest enriched = new TextAnalyzeRequest(
                 request.id(), userId, request.text(), request.source(), request.createdAt(), request.metadata());
-        return emotionAnalysisService.analyze(enriched);
+        AnalyzeResponse response = emotionAnalysisService.analyze(enriched);
+        chatPersistenceService.saveStandaloneEmotionRecord(userId, enriched.text(), response);
+        return response;
     }
 
     // analyse+history+问题+meta
@@ -104,21 +106,17 @@ public class EmotionAnalysisController {
         return chatPersistenceService.profile(effectiveUserId);
     }
 
-    // admin 专属：生成用户画像，可选 target_user_id
+    // user 生成自己的画像；admin 可选 target_user_id
     // 查看情绪画像
     @PostMapping("/profile/generate")
     public Map<String, Object> profileGenerate(
             @RequestParam(value = "target_user_id", required = false) String targetUserId,
             HttpServletRequest httpRequest) {
         String role = (String) httpRequest.getAttribute(JwtAuthFilter.ATTR_ROLE);
-        if (!"admin".equals(role)) {
-            throw new SecurityException("仅管理员可访问用户画像接口");
-        }
-
         String userId = (String) httpRequest.getAttribute(JwtAuthFilter.ATTR_USER_ID);
         String effectiveUserId = userId;
         // admin：指定了用户就查该用户，没指定就查全部
-        if (targetUserId != null && !targetUserId.isBlank()) {
+        if ("admin".equals(role) && targetUserId != null && !targetUserId.isBlank()) {
             effectiveUserId = targetUserId;
         }
         return chatPersistenceService.profileGenerate(effectiveUserId);

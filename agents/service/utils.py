@@ -17,6 +17,7 @@ from fastapi import HTTPException
 # 动态将 agents 目录加入 Python 路径，确保各 Agent 包可被导入
 AGENTS_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[2]
+AGENTS_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(AGENTS_ROOT))
 
 from chat_agent import ChatAgent, HTTPChatLLMClient  # noqa: E402
@@ -28,6 +29,47 @@ from sarcasm_agent import HTTPSarcasmLLMClient, SarcasmAgent  # noqa: E402
 from profile_agent import ProfileAgent, HTTPProfileLLMClient  # noqa: E402
 from profile_agent import extract_features, build_visualization_data  # noqa: E402
 from base.llm_config import LLMConfig  # noqa: E402
+
+def _load_env_file(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            values[key] = value
+    return values
+
+
+def _load_env_value(*names: str, default: str | None = None) -> str | None:
+    # Repository .env is the project-level source of truth. agents/.env is kept
+    # as a fallback for older local setups, then process env as last resort.
+    env_values = _load_env_file(REPO_ROOT / ".env")
+    agent_env_values = _load_env_file(AGENTS_ROOT / ".env")
+
+    for name in names:
+        value = env_values.get(name)
+        if value:
+            return value
+
+    for name in names:
+        value = agent_env_values.get(name)
+        if value:
+            return value
+
+    for name in names:
+        value = os.getenv(name, "").strip()
+        if value:
+            return value
+
+    return default
+
 
 def _load_api_key() -> str:
     """加载 API 密钥。
@@ -42,21 +84,7 @@ def _load_api_key() -> str:
     Raises:
         RuntimeError: 当 API_KEY 未找到时抛出。
     """
-    # 优先从 .env 文件读取
-    env_path = REPO_ROOT / ".env"
-    if env_path.exists():
-        for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            if key.strip() == "API_KEY":
-                api_key = value.strip().strip('"').strip("'")
-                if api_key:
-                    return api_key
-
-    # 其次从环境变量读取
-    api_key = os.getenv("API_KEY", "").strip()
+    api_key = _load_env_value("API_KEY", "LLM_API_KEY")
     if api_key:
         return api_key
 
@@ -65,9 +93,9 @@ def _load_api_key() -> str:
 def _build_router_agent() -> RouterAgent:
     """构建 Router Agent 实例。"""
     config = LLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+        base_url=_load_env_value("LLM_BASE_URL", default="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
+        model=_load_env_value("LLM_MODEL", default="qwen-flash"),
     )
     return RouterAgent(client=HTTPRouterLLMClient(config))
 
@@ -75,9 +103,9 @@ def _build_router_agent() -> RouterAgent:
 def _build_emotion_agent() -> EmotionAgent:
     """构建 Emotion Agent 实例。"""
     config = LLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+        base_url=_load_env_value("LLM_BASE_URL", default="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
+        model=_load_env_value("LLM_MODEL", default="qwen-flash"),
     )
     return EmotionAgent(client=HTTPEmotionLLMClient(config))
 
@@ -85,18 +113,18 @@ def _build_emotion_agent() -> EmotionAgent:
 def _build_sarcasm_agent() -> SarcasmAgent:
     """构建 Sarcasm Agent 实例。"""
     config = LLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+        base_url=_load_env_value("LLM_BASE_URL", default="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
+        model=_load_env_value("LLM_MODEL", default="qwen-flash"),
     )
     return SarcasmAgent(client=HTTPSarcasmLLMClient(config))
 
 def _build_mix_agent() -> MixAgent:
     """构建 Mix Agent 实例。"""
     config = LLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+        base_url=_load_env_value("LLM_BASE_URL", default="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
+        model=_load_env_value("LLM_MODEL", default="qwen-flash"),
     )
     return MixAgent(client=HTTPMixLLMClient(config))
 
@@ -104,9 +132,9 @@ def _build_mix_agent() -> MixAgent:
 def _build_judge_agent() -> JudgeAgent:
     """构建 Judge Agent 实例。"""
     config = LLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+        base_url=_load_env_value("LLM_BASE_URL", default="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
+        model=_load_env_value("LLM_MODEL", default="qwen-flash"),
     )
     return JudgeAgent(client=HTTPJudgeLLMClient(config))
 
@@ -114,9 +142,9 @@ def _build_judge_agent() -> JudgeAgent:
 def _build_chat_agent() -> ChatAgent:
     """构建 Chat Agent 实例。Chat Agent 默认使用 qwen-plus 模型。"""
     config = LLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+        base_url=_load_env_value("LLM_BASE_URL", default="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-plus"),
+        model=_load_env_value("LLM_MODEL", default="qwen-plus"),
     )
     return ChatAgent(client=HTTPChatLLMClient(config))
 
@@ -124,9 +152,9 @@ def _build_chat_agent() -> ChatAgent:
 def _build_profile_agent() -> ProfileAgent:
     """构建 Profile Agent 实例。"""
     config = LLMConfig(
-        base_url=os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
+        base_url=_load_env_value("LLM_BASE_URL", default="https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"),
         api_key=_load_api_key(),
-        model=os.getenv("LLM_MODEL", "qwen-flash"),
+        model=_load_env_value("LLM_MODEL", default="qwen-flash"),
     )
     return ProfileAgent(client=HTTPProfileLLMClient(config))
 

@@ -1,0 +1,65 @@
+@media (max-width: 1120px) {
+  .auth-intro {
+    min-height: auto;
+  }
+
+  .app-shell {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .insight-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 780px) {
+  .auth-view {
+    padding: 10px;
+  }
+
+  .auth-panel {
+    min-height: calc(100vh - 20px);
+  }
+
+  .auth-copy {
+    min-height: auto;
+    padding: 22px;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    padding: 10px;
+  }
+
+  .sidebar {
+    min-height: auto;
+  }
+
+  .settings {
+    margin-top: 0;
+  }
+
+  .chat-panel {
+    min-height: 72vh;
+  }
+
+  .chat-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .message,
+  .message.user {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .message.user {
+    grid-template-columns: minmax(0, 1fr) 34px;
+  }
+
+  .conversation-id {
+    max-width: 100%;
+  }
+}

@@ -19,6 +19,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.UUID;
 @Service
 public class ChatPersistenceService {
     private static final int TITLE_MAX_LENGTH = 15;
+    private static final String PROFILE_CONVERSATION_TITLE = "画像采样";
 
     private final ConversationRepository conversationRepository;
     private final ChatMessageRepository chatMessageRepository;
@@ -80,7 +82,9 @@ public class ChatPersistenceService {
     // 为前端提供用户的最近20条对话记录
     @Transactional(readOnly = true)
     public List<Map<String, Object>> conversationsForUser(String userId) {
-        return conversationRepository.findTop20ByUserIdOrderByUpdatedAtDesc(userId).stream()
+        return conversationRepository.findTop20ByUserIdAndTitleNotOrderByUpdatedAtDesc(
+                        userId,
+                        PROFILE_CONVERSATION_TITLE).stream()
                 .map(this::conversationToMap)
                 .toList();
     }
@@ -88,7 +92,7 @@ public class ChatPersistenceService {
     // admin 查看所有用户的最近20条对话记录
     @Transactional(readOnly = true)
     public List<Map<String, Object>> allConversations() {
-        return conversationRepository.findTop20ByOrderByUpdatedAtDesc().stream()
+        return conversationRepository.findTop20ByTitleNotOrderByUpdatedAtDesc(PROFILE_CONVERSATION_TITLE).stream()
                 .map(this::conversationToMap)
                 .toList();
     }
@@ -131,6 +135,29 @@ public class ChatPersistenceService {
                 toJson(analysisResult),
                 Instant.now());
         emotionRecordRepository.save(record);
+    }
+
+    @Transactional
+    public void saveStandaloneEmotionRecord(String userId, String text, AnalyzeResponse analysisResult) {
+        Instant now = Instant.now();
+        Conversation conversation = conversationRepository.findByUserIdAndTitle(userId, PROFILE_CONVERSATION_TITLE)
+                .map(existing -> {
+                    existing.touch(now);
+                    return conversationRepository.save(existing);
+                })
+                .orElseGet(() -> conversationRepository.save(new Conversation(
+                        UUID.randomUUID().toString(),
+                        userId,
+                        PROFILE_CONVERSATION_TITLE,
+                        now,
+                        now)));
+        ChatMessage message = chatMessageRepository.save(new ChatMessage(
+                UUID.randomUUID().toString(),
+                conversation.getId(),
+                "user",
+                text,
+                now));
+        saveEmotionRecord(new ChatTurn(conversation.getId(), message.getId()), analysisResult);
     }
 
     // 保存ai回答结果

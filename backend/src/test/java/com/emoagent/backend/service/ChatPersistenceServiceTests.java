@@ -1,5 +1,6 @@
 package com.emoagent.backend.service;
 
+import com.emoagent.backend.client.AgentClient;
 import com.emoagent.backend.dto.ChatRequest;
 import com.emoagent.backend.entity.ChatMessage;
 import com.emoagent.backend.repository.ChatMessageRepository;
@@ -33,6 +34,9 @@ class ChatPersistenceServiceTests {
 
     @Mock
     private EmotionRecordRepository emotionRecordRepository;
+
+    @Mock
+    private AgentClient agentClient;
 
     @Test
     void startTurnRejectsConversationOwnedByAnotherUser() {
@@ -94,6 +98,7 @@ class ChatPersistenceServiceTests {
                 conversationRepository,
                 chatMessageRepository,
                 emotionRecordRepository,
+                agentClient,
                 new ObjectMapper()
         );
     }
