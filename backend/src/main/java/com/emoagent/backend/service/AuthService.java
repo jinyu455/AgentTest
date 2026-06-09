@@ -68,7 +68,7 @@ public class AuthService {
 
         // 2. 检查用户名唯一
         if (userRepository.existsByUsername(request.username())) {
-            throw new IllegalArgumentException("用户名已存在");
+            throw new IllegalArgumentException("该用户名已存在");
         }
 
         // 3. 生成盐值和密码哈希

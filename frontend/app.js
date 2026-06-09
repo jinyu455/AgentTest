@@ -105,8 +105,6 @@ function collectElements() {
     sarcasmValue: document.querySelector("#sarcasmValue"),
     secondaryEmotion: document.querySelector("#secondaryEmotion"),
     sendButton: document.querySelector("#sendButton"),
-    serviceStatus: document.querySelector("#serviceStatus"),
-    statusDot: document.querySelector("#statusDot"),
     userMiniAvatar: document.querySelector("#userMiniAvatar"),
   };
 }
@@ -115,7 +113,6 @@ function init() {
   restoreState();
   bindEvents();
   renderRoute();
-  checkHealth();
 }
 
 function bindEvents() {
@@ -393,7 +390,6 @@ async function handleSubmit(event) {
       content: `连接后端时遇到问题：${error.message}`,
       error: true,
     });
-    setServiceStatus("连接失败", "offline");
     renderMessages(true);
     persistState();
   } finally {
@@ -518,7 +514,7 @@ function renderConversationList() {
   }
 
   if (state.conversationsStatus === "error") {
-    els.conversationList.innerHTML = `<p class="empty-history">历史会话加载失败，请确认登录状态和后端服务。</p>`;
+    els.conversationList.innerHTML = `<p class="empty-history">历史会话加载失败，请确认登录状态和网络连接。</p>`;
     return;
   }
 
@@ -757,8 +753,8 @@ function renderComboChart(profile, container = els.emotionComboChart) {
   container.classList.toggle("is-scrollable-chart", shouldScroll);
   const width = shouldScroll ? Math.max(minWidth, records.length * 112 + 140) : minWidth;
   const svgWidthStyle = shouldScroll ? `width: ${width}px;` : `width: 100%; min-width: ${minWidth}px;`;
-  const height = 420;
-  const padding = { top: 48, right: 44, bottom: 72, left: 56 };
+  const height = 500;
+  const padding = { top: 62, right: 44, bottom: 86, left: 56 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
   const baseline = padding.top + chartHeight;
@@ -874,24 +870,6 @@ async function handleConversationListClick(event) {
   await loadConversationMessages(conversation.id);
 }
 
-async function checkHealth() {
-  setServiceStatus("检查中", "");
-  try {
-    const response = await apiFetch("/api/emotion/health", { auth: false });
-    if (!response.ok) {
-      throw new Error(String(response.status));
-    }
-    setServiceStatus("已连接", "online");
-  } catch {
-    setServiceStatus("未连接", "offline");
-  }
-}
-
-function setServiceStatus(text, statusClass) {
-  els.serviceStatus.textContent = text;
-  els.statusDot.className = `status-dot ${statusClass || ""}`.trim();
-}
-
 function setBusy(isBusy) {
   state.busy = isBusy;
   els.sendButton.disabled = isBusy;
@@ -950,7 +928,6 @@ async function loadConversationMessages(conversationId, refreshList = true) {
   } catch {
     state.messages = [];
     renderMessages();
-    setServiceStatus("历史加载失败", "offline");
   } finally {
     setBusy(false);
   }
