@@ -195,7 +195,7 @@
       </div>
     </header>
 
-    <section class="admin-user-card">
+    <section class="admin-user-card" id="adminUserSearchCard">
       <div>
         <span class="eyebrow">画像对象</span>
         <h3 id="adminTargetLabel">请选择一个用户</h3>
@@ -215,58 +215,68 @@
       <div class="admin-user-list" id="adminUserList"></div>
     </section>
 
-    <section class="history-summary-grid admin-summary-grid">
-      <div>
-        <span>样本记录</span>
-        <strong id="adminTotalRecords">--</strong>
-      </div>
-      <div>
-        <span>主导情绪</span>
-        <strong id="adminDominantEmotion">--</strong>
-      </div>
-      <div>
-        <span>平均强度</span>
-        <strong id="adminAvgIntensity">--</strong>
-      </div>
-      <div>
-        <span>MBTI 推断</span>
-        <strong id="adminMbti">--</strong>
-      </div>
-    </section>
+    <section class="admin-content-card">
+      <nav class="admin-tabs" aria-label="管理员画像视图">
+        <button class="admin-tab active" type="button" data-admin-tab="style">用户风格</button>
+        <button class="admin-tab" type="button" data-admin-tab="trend">情绪变化</button>
+      </nav>
 
-    <section class="admin-profile-card">
-      <div>
-        <span class="eyebrow">画像摘要</span>
-        <h3 id="adminSummary">等待生成</h3>
-      </div>
-      <div class="admin-traits" id="adminTraits"></div>
-      <div class="admin-copy-grid">
-        <p><strong>沟通风格</strong><span id="adminCommunicationStyle">--</span></p>
-        <p><strong>情绪模式</strong><span id="adminEmotionalPatterns">--</span></p>
-      </div>
-    </section>
+      <section class="admin-tab-panel" id="adminStylePanel" data-admin-panel="style">
+        <section class="history-summary-grid admin-summary-grid">
+          <div>
+            <span>样本记录</span>
+            <strong id="adminTotalRecords">--</strong>
+          </div>
+          <div>
+            <span>主导情绪</span>
+            <strong id="adminDominantEmotion">--</strong>
+          </div>
+          <div>
+            <span>平均强度</span>
+            <strong id="adminAvgIntensity">--</strong>
+          </div>
+          <div>
+            <span>MBTI 推断</span>
+            <strong id="adminMbti">--</strong>
+          </div>
+        </section>
 
-    <section class="combo-chart-card">
-      <div class="chart-heading">
-        <div>
-          <span class="eyebrow">组合图</span>
-          <h3>情绪强度走势</h3>
-        </div>
-      </div>
-      <div class="combo-chart" id="adminComboChart" role="img" aria-label="管理员用户情绪强度组合图"></div>
-    </section>
+        <section class="admin-profile-card">
+          <div>
+            <span class="eyebrow">画像摘要</span>
+            <h3 id="adminSummary">等待生成</h3>
+          </div>
+          <div class="admin-traits" id="adminTraits"></div>
+          <div class="admin-copy-grid">
+            <p><strong>沟通风格</strong><span id="adminCommunicationStyle">--</span></p>
+            <p><strong>情绪模式</strong><span id="adminEmotionalPatterns">--</span></p>
+          </div>
+        </section>
+      </section>
 
-    <section class="history-detail-grid admin-detail-grid">
-      <div>
-        <span class="eyebrow">情绪分布</span>
-        <div class="emotion-distribution-list" id="adminEmotionDistributionList"></div>
-      </div>
-      <div>
-        <span class="eyebrow">活跃时段</span>
-        <div class="activity-list" id="adminActivityPatternList"></div>
-      </div>
-    </section>
+      <section class="admin-tab-panel" id="adminTrendPanel" data-admin-panel="trend" hidden>
+        <section class="combo-chart-card">
+          <div class="chart-heading">
+            <div>
+              <span class="eyebrow">组合图</span>
+              <h3>情绪强度走势</h3>
+            </div>
+          </div>
+          <div class="combo-chart" id="adminComboChart" role="img" aria-label="管理员用户情绪强度组合图"></div>
+        </section>
 
-    <p class="history-status" id="adminStatus"></p>
+        <section class="history-detail-grid admin-detail-grid">
+          <div>
+            <span class="eyebrow">情绪分布</span>
+            <div class="emotion-distribution-list" id="adminEmotionDistributionList"></div>
+          </div>
+          <div>
+            <span class="eyebrow">活跃时段</span>
+            <div class="activity-list" id="adminActivityPatternList"></div>
+          </div>
+        </section>
+      </section>
+      <p class="history-status admin-status" id="adminStatus"></p>
+    </section>
   </section>
 </main>

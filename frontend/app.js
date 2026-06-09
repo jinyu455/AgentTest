@@ -13,6 +13,8 @@ const state = {
   lastProfileSignal: null,
   adminUsers: [],
   adminTargetUserId: "",
+  adminSearchOpen: false,
+  adminActiveTab: "style",
   busy: false,
   captchaKey: "",
 };
@@ -40,6 +42,7 @@ function collectElements() {
     captchaCode: document.querySelector("#captchaCode"),
     captchaImage: document.querySelector("#captchaImage"),
     chatForm: document.querySelector("#chatForm"),
+    faceRatingInput: document.querySelector("#face-rating"),
     chatPanel: document.querySelector(".chat-panel"),
     confidenceValue: document.querySelector("#confidenceValue"),
     conversationIdLabel: document.querySelector("#conversationIdLabel"),
@@ -70,10 +73,13 @@ function collectElements() {
     adminLogoutButton: document.querySelector("#adminLogoutButton"),
     adminMbti: document.querySelector("#adminMbti"),
     adminStatus: document.querySelector("#adminStatus"),
+    adminTabs: document.querySelectorAll("[data-admin-tab]"),
+    adminTabPanels: document.querySelectorAll("[data-admin-panel]"),
     adminSummary: document.querySelector("#adminSummary"),
     adminTargetLabel: document.querySelector("#adminTargetLabel"),
     adminTotalRecords: document.querySelector("#adminTotalRecords"),
     adminTraits: document.querySelector("#adminTraits"),
+    adminUserSearchCard: document.querySelector("#adminUserSearchCard"),
     adminUserList: document.querySelector("#adminUserList"),
     adminUserSearch: document.querySelector("#adminUserSearch"),
     adminUserSearchButton: document.querySelector("#adminUserSearchButton"),
@@ -116,21 +122,38 @@ function bindEvents() {
   els.authTabs.forEach((tab) => {
     tab.addEventListener("click", () => switchAuthTab(tab.dataset.authTab));
   });
+  initFaceRating();
   els.loginForm.addEventListener("submit", handleLogin);
   els.registerForm.addEventListener("submit", handleRegister);
   els.refreshCaptchaButton.addEventListener("click", loadCaptcha);
-  els.logoutButton.addEventListener("click", logout);
-  els.adminLogoutButton.addEventListener("click", logout);
+  els.logoutButton.addEventListener("click", () => logout());
+  els.adminLogoutButton.addEventListener("click", () => logout());
   els.adminUserList.addEventListener("click", handleAdminUserClick);
+  els.adminTabs.forEach((tab) => {
+    tab.addEventListener("click", () => switchAdminTab(tab.dataset.adminTab));
+  });
   els.adminUserSearch.addEventListener("input", renderAdminUsers);
   els.adminUserSearch.addEventListener("search", renderAdminUsers);
+  els.adminUserSearch.addEventListener("focus", () => {
+    state.adminSearchOpen = true;
+    renderAdminUsers();
+  });
   els.adminUserSearch.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       renderAdminUsers();
     }
   });
-  els.adminUserSearchButton.addEventListener("click", renderAdminUsers);
+  els.adminUserSearchButton.addEventListener("click", () => {
+    state.adminSearchOpen = true;
+    renderAdminUsers();
+  });
+  document.addEventListener("click", (event) => {
+    if (!els.adminUserSearchCard?.contains(event.target)) {
+      state.adminSearchOpen = false;
+      renderAdminUsers();
+    }
+  });
   els.chatForm.addEventListener("submit", handleSubmit);
   els.newChatButton.addEventListener("click", resetConversation);
   els.conversationList.addEventListener("click", handleConversationListClick);
@@ -145,6 +168,52 @@ function bindEvents() {
       els.chatForm.requestSubmit();
     }
   });
+}
+
+function initFaceRating() {
+  if (!els.faceRatingInput) {
+    return;
+  }
+  els.faceRatingInput.closest("form")?.addEventListener("submit", (event) => event.preventDefault());
+  const rating = new FaceRating(els.faceRatingInput);
+  rating.update();
+}
+
+class FaceRating {
+  constructor(input) {
+    this.input = input;
+    this.face = input.previousElementSibling;
+    this.input.addEventListener("input", this.update.bind(this));
+  }
+
+  update(event) {
+    const value = Number(event?.target?.value ?? this.input.value ?? this.input.defaultValue);
+    const min = Number(this.input.min || 0);
+    const max = Number(this.input.max || 100);
+    const percentRaw = ((value - min) / (max - min)) * 100;
+    const percent = Math.max(0, Math.min(100, Number(percentRaw.toFixed(2))));
+    const rating = percent / 100;
+
+    this.input.style.setProperty("--percent", `${percent}%`);
+    this.input.style.setProperty("--input-hue", Math.round(120 * rating));
+    this.face.style.setProperty("--rating", rating.toFixed(3));
+    this.face.style.setProperty("--face-hue1", Math.round(120 * rating));
+    this.face.style.setProperty("--face-hue2", Math.round((120 * rating + 330) % 360));
+    this.face.style.setProperty("--eye-tilt", `${(-9 + rating * 18).toFixed(2)}deg`);
+    this.face.style.setProperty("--eye-lift", `${(5 - rating * 10).toFixed(2)}px`);
+    const duration = 1;
+    const delay = -(duration * 0.99 * rating).toFixed(3);
+    ["mouth-lower", "mouth-upper"].forEach((part) => {
+      this.face.querySelector(`[data-${part}]`)?.style.setProperty("--mouth-delay", `${delay}s`);
+    });
+
+    const faces = ["低落表情", "有点低落", "平静表情", "有点开心", "开心表情"];
+    let faceIndex = Math.floor((faces.length * percent) / 100);
+    if (faceIndex === faces.length) {
+      faceIndex -= 1;
+    }
+    this.face.setAttribute("aria-label", faces[faceIndex]);
+  }
 }
 
 function renderRoute() {
@@ -166,6 +235,7 @@ function renderRoute() {
     els.insightPanel.hidden = true;
     document.querySelector(".sidebar").hidden = true;
     els.adminDashboard.hidden = false;
+    switchAdminTab(state.adminActiveTab || "style");
     loadAdminUsers();
     return;
   }
@@ -536,7 +606,7 @@ async function loadAdminDashboard() {
     );
     const profile = await response.json();
     renderAdminDashboard(profile);
-    setAdminStatus("已根据所选用户的历史情绪记录生成画像。", "success");
+    setAdminStatus("");
   } catch (error) {
     renderAdminDashboard(null);
     setAdminStatus(error.message || "用户画像生成失败", "error");
@@ -596,6 +666,7 @@ function buildAdminUsers(conversations) {
 }
 
 function renderAdminUsers() {
+  els.adminUserSearchCard.classList.toggle("is-open", state.adminSearchOpen);
   if (!state.adminUsers.length) {
     els.adminTargetLabel.textContent = "暂无可选用户";
     els.adminUserList.innerHTML = `<p class="chart-empty">还没有普通用户会话。</p>`;
@@ -606,7 +677,7 @@ function renderAdminUsers() {
   const query = els.adminUserSearch.value.trim().toLowerCase();
   const visibleUsers = query
     ? state.adminUsers.filter((user) => user.name.toLowerCase().includes(query))
-    : state.adminUsers;
+    : state.adminUsers.slice(0, 6);
   if (!visibleUsers.length) {
     els.adminUserList.innerHTML = `<p class="chart-empty">没有匹配的用户。</p>`;
     return;
@@ -623,12 +694,26 @@ function renderAdminUsers() {
 
 async function handleAdminUserClick(event) {
   const button = event.target.closest("[data-admin-user-id]");
-  if (!button || button.dataset.adminUserId === state.adminTargetUserId) {
+  if (!button) {
     return;
   }
+  const sameUser = button.dataset.adminUserId === state.adminTargetUserId;
   state.adminTargetUserId = button.dataset.adminUserId;
+  state.adminSearchOpen = false;
+  els.adminUserSearch.value = "";
   renderAdminUsers();
+  if (sameUser) {
+    return;
+  }
   await loadAdminDashboard();
+}
+
+function switchAdminTab(tabName = "style") {
+  state.adminActiveTab = tabName;
+  els.adminTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.adminTab === tabName));
+  els.adminTabPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.adminPanel !== tabName;
+  });
 }
 
 function renderAdminDashboard(profile) {
@@ -689,7 +774,7 @@ function renderComboChart(profile, container = els.emotionComboChart) {
       const barHeight = baseline - point.y;
       const x = point.x - barWidth / 2;
       return `
-        <rect x="${x.toFixed(1)}" y="${point.y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}" rx="7" fill="rgba(19, 122, 116, 0.18)">
+        <rect class="chart-bar" x="${x.toFixed(1)}" y="${point.y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}" rx="7">
           <title>${escapeHtml(recordTooltip(point, index))}</title>
         </rect>
       `;
@@ -909,6 +994,7 @@ async function apiFetch(path, options = {}) {
 }
 
 function logout(message = "") {
+  const authMessage = typeof message === "string" ? message : "";
   state.auth = null;
   state.conversationId = null;
   state.conversations = [];
@@ -917,8 +1003,8 @@ function logout(message = "") {
   state.lastProfileSignal = null;
   localStorage.removeItem(AUTH_KEY);
   renderRoute();
-  if (message) {
-    setAuthMessage(message, "error");
+  if (authMessage) {
+    setAuthMessage(authMessage, "error");
   }
 }
 
