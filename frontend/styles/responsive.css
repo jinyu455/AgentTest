@@ -34,6 +34,52 @@
     padding: 22px;
   }
 
+  .auth-copy::before,
+  .auth-copy::after,
+  .auth-card::before,
+  .auth-card::after {
+    display: none;
+  }
+
+  .auth-card {
+    min-height: auto;
+    border-radius: 24px;
+    padding: 24px;
+  }
+
+  .auth-face-rating {
+    width: min(100%, 300px);
+    margin: 8px 0 12px;
+    padding: 0;
+  }
+
+  .fr__face {
+    width: 92px;
+    height: 92px;
+  }
+
+  .fr__face-left-eye {
+    left: 27px;
+  }
+
+  .fr__face-right-eye {
+    right: 27px;
+  }
+
+  .fr__face-mouth-lower,
+  .fr__face-mouth-upper {
+    top: 52px;
+    width: 40px;
+    height: 20px;
+  }
+
+  .auth-card:hover,
+  .primary-action:hover,
+  .auth-tab.active,
+  .captcha-box button {
+    border-radius: 18px;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
     height: auto;
@@ -50,6 +96,7 @@
   }
 
   .chat-panel {
+    height: auto;
     min-height: 72vh;
   }
 
@@ -73,11 +120,13 @@
 
   .history-page {
     grid-column: 1;
+    height: auto;
     padding: 16px;
   }
 
   .admin-dashboard {
     grid-column: 1;
+    height: auto;
     padding: 16px;
   }
 
