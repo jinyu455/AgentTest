@@ -160,7 +160,7 @@ function bindEvents() {
   els.openHistoryButton.addEventListener("click", openHistoryPage);
   els.backToChatButton.addEventListener("click", closeHistoryPage);
   els.refreshHistoryButton.addEventListener("click", loadEmotionHistory);
-  els.refreshAdminButton.addEventListener("click", loadAdminDashboard);
+  els.refreshAdminButton.addEventListener("click", () => loadAdminDashboard({ force: true }));
   els.messageInput.addEventListener("input", autoResizeInput);
   els.messageInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -591,7 +591,7 @@ function renderEmotionHistory(profile) {
   renderKeyValueBars(els.activityPatternList, profile?.activity_pattern, "暂无活跃时段");
 }
 
-async function loadAdminDashboard() {
+async function loadAdminDashboard({ force = false } = {}) {
   if (!state.adminTargetUserId) {
     renderAdminDashboard(null);
     setAdminStatus("请选择一个用户后再生成画像。", "error");
@@ -600,8 +600,9 @@ async function loadAdminDashboard() {
   setAdminStatus("正在生成用户画像...");
   els.refreshAdminButton.disabled = true;
   try {
+    const forceParam = force ? "&force=true" : "";
     const response = await apiFetch(
-      `/api/emotion/profile/generate?target_user_id=${encodeURIComponent(state.adminTargetUserId)}`,
+      `/api/emotion/profile/generate?target_user_id=${encodeURIComponent(state.adminTargetUserId)}${forceParam}`,
       { method: "POST" }
     );
     const profile = await response.json();

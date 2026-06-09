@@ -341,43 +341,48 @@ public class ChatPersistenceService {
     // 生成用户画像（调用大模型），只有新增情绪记录满10条才重新生成
     @Transactional
     public Map<String, Object> profileGenerate(String userId) {
+        return profileGenerate(userId, false);
+    }
+
+    // force=true 时手动重新生成；否则读取缓存，新增满10条才自动重新生成
+    @Transactional
+    public Map<String, Object> profileGenerate(String userId, boolean force) {
         // 获取当前情绪记录总数
         long currentCount = emotionRecordRepository.countByUserId(userId);
+        if (currentCount == 0) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("user_id", userId);
+            result.put("profile", "");
+            result.put("record_count", 0);
+            result.put("cached", false);
+            return result;
+        }
 
         // 检查是否已有缓存的画像
         return userProfileRepository.findByUserId(userId)
                 .map(existing -> {
                     // 计算新增记录数
                     long newRecordsCount = currentCount - existing.getRecordCount();
-                    if (newRecordsCount >= PROFILE_UPDATE_THRESHOLD) {
-                        // 新增满10条，重新生成
+                    if (force || newRecordsCount >= PROFILE_UPDATE_THRESHOLD) {
+                        // 手动强制生成，或新增满10条，重新生成
                         return regenerateProfile(userId, currentCount);
                     }
                     // 不满10条，返回缓存的画像
-                    Map<String, Object> result = new HashMap<>();
+                    Map<String, Object> result = fromJsonMap(existing.getProfileData());
                     result.put("user_id", userId);
-                    result.put("profile", existing.getProfileData());
                     result.put("record_count", existing.getRecordCount());
                     result.put("cached", true);
                     return result;
                 })
                 .orElseGet(() -> {
                     // 没有缓存，首次生成
-                    if (currentCount == 0) {
-                        Map<String, Object> result = new HashMap<>();
-                        result.put("user_id", userId);
-                        result.put("profile", "");
-                        result.put("record_count", 0);
-                        result.put("cached", false);
-                        return result;
-                    }
                     return regenerateProfile(userId, currentCount);
                 });
     }
 
     private Map<String, Object> regenerateProfile(String userId, long recordCount) {
         Map<String, Object> payload = buildProfilePayload(userId);
-        Map<String, Object> result = agentClient.profileGenerate(payload);
+        Map<String, Object> result = new HashMap<>(agentClient.profileGenerate(payload));
 
         // Python 返回的是完整画像结构，直接序列化存库
         String profileContent = toJson(result);
@@ -402,5 +407,19 @@ public class ChatPersistenceService {
         result.put("record_count", recordCount);
         result.put("cached", false);
         return result;
+    }
+
+    private Map<String, Object> fromJsonMap(String value) {
+        try {
+            Object parsed = objectMapper.readValue(value, Map.class);
+            if (parsed instanceof Map<?, ?> map) {
+                Map<String, Object> result = new HashMap<>();
+                map.forEach((key, entryValue) -> result.put(String.valueOf(key), entryValue));
+                return result;
+            }
+            throw new IllegalStateException("Cached user profile is not a JSON object");
+        } catch (JacksonException exception) {
+            throw new IllegalStateException("Failed to deserialize cached user profile", exception);
+        }
     }
 }

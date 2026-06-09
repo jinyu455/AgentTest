@@ -111,6 +111,7 @@ public class EmotionAnalysisController {
     @PostMapping("/profile/generate")
     public Map<String, Object> profileGenerate(
             @RequestParam(value = "target_user_id", required = false) String targetUserId,
+            @RequestParam(value = "force", defaultValue = "false") boolean force,
             HttpServletRequest httpRequest) {
         String role = (String) httpRequest.getAttribute(JwtAuthFilter.ATTR_ROLE);
         String userId = (String) httpRequest.getAttribute(JwtAuthFilter.ATTR_USER_ID);
@@ -119,6 +120,6 @@ public class EmotionAnalysisController {
         if ("admin".equals(role)) {
             effectiveUserId = targetUserId != null && !targetUserId.isBlank() ? targetUserId : null;
         }
-        return chatPersistenceService.profileGenerate(effectiveUserId);
+        return chatPersistenceService.profileGenerate(effectiveUserId, force);
     }
 }
