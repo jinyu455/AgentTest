@@ -20,7 +20,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Deploy by SSH
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Upload code to server
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }}" \
+            --exclude '.git' \
+            --exclude '.env' \
+            --exclude '*.sqlite3' \
+            --exclude 'node_modules' \
+            --exclude 'target' \
+            --exclude '__pycache__' \
+            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/emotion_agent/
+      - name: Restart services
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -29,11 +46,6 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             set -e
-            cd /emotion_agent
-
-            # 拉取最新代码
-            git fetch --all
-            git reset --hard origin/main
 
             # 重启服务
             sudo systemctl daemon-reload
