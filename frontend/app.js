@@ -1,7 +1,7 @@
 const STORAGE_KEY = "emoagent.chat.state";
 const API_KEY = "emoagent.api.base";
 const AUTH_KEY = "emoagent.auth";
-const DEFAULT_API_BASE = `${window.location.protocol}//${window.location.hostname}:8080`;
+const DEFAULT_API_BASE = window.location.origin;
 
 const state = {
   apiBase: localStorage.getItem(API_KEY) || DEFAULT_API_BASE,
