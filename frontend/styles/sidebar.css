@@ -113,31 +113,6 @@
   padding: 10px 2px;
 }
 
-.status-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px;
-}
-
-.status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: var(--yellow);
-  box-shadow: 0 0 0 5px rgba(240, 188, 66, 0.18);
-}
-
-.status-dot.online {
-  background: var(--accent);
-  box-shadow: 0 0 0 5px rgba(19, 122, 116, 0.17);
-}
-
-.status-dot.offline {
-  background: var(--coral);
-  box-shadow: 0 0 0 5px rgba(216, 95, 73, 0.16);
-}
-
 .sidebar-footer {
   margin-top: auto;
   display: grid;

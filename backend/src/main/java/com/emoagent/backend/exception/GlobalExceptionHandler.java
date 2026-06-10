@@ -22,6 +22,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("message", message));
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException exception) {
+        return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
+    }
+
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<Map<String, Object>> handleAgentError(RestClientException exception) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
