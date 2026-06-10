@@ -31,6 +31,9 @@ jobs:
             set -e
             cd /emotion_agent
 
+            # 配置 GitHub 镜像加速
+            git config --global url."https://ghproxy.com/https://github.com/".insteadOf "https://github.com/"
+
             # 拉取最新代码
             git fetch --all
             git reset --hard origin/main
