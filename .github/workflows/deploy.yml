@@ -41,11 +41,19 @@ jobs:
             sudo systemctl restart nginx
             sudo systemctl restart emotion-agent
 
-            # 等待 Spring Boot 启动（最多 60 秒）
+            # 等待 Spring Boot 启动（最多 90 秒）
             echo "Waiting for emotion-agent to become active..."
-            sudo systemctl is-active --wait --timeout=60 emotion-agent || true
+            for i in $(seq 1 18); do
+              status=$(sudo systemctl is-active emotion-agent 2>/dev/null || true)
+              if [ "$status" = "active" ]; then
+                echo "emotion-agent is active"
+                break
+              fi
+              echo "  [$i/18] status=$status, waiting 5s..."
+              sleep 5
+            done
 
-            # 验证服务状态
+            # 最终验证
             sudo systemctl is-active emotion-agent-python
             sudo systemctl is-active nginx
             sudo systemctl is-active emotion-agent
