@@ -1,0 +1,47 @@
+name: Deploy
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    # 仅在 CI 成功或手动触发时执行
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Deploy by SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            cd /emotion_agent
+
+            # 拉取最新代码
+            git fetch --all
+            git reset --hard origin/main
+
+            # 重启服务
+            sudo systemctl daemon-reload
+            sudo systemctl restart emotion-agent-python
+            sudo systemctl restart emotion-agent
+            sudo systemctl restart nginx
+
+            # 验证服务状态
+            sudo systemctl is-active emotion-agent-python
+            sudo systemctl is-active emotion-agent
+            sudo systemctl is-active nginx
