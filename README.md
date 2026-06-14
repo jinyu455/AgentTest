@@ -52,6 +52,21 @@ cd frontend
 python -m http.server 5173
 ```
 
+前端默认使用当前页面同源地址作为 API 基础地址，这是为了配合服务器部署时的 Nginx 转发：线上由 Nginx 接收同源 `/api/...` 请求，并代理到 Spring Boot 后端。
+本地使用 Python 静态服务器访问 `http://localhost:5173` 时，`python -m http.server` 不会代理 `/api` 到后端，因此需要在浏览器控制台执行一次：
+
+```javascript
+localStorage.setItem("emoagent.api.base", "http://127.0.0.1:8080")
+location.reload()
+```
+
+这样本地前端会请求 `http://127.0.0.1:8080/api/...`。如需恢复默认同源地址，可执行：
+
+```javascript
+localStorage.removeItem("emoagent.api.base")
+location.reload()
+```
+
 默认地址：
 
 - Agent 服务: `http://127.0.0.1:8000`
