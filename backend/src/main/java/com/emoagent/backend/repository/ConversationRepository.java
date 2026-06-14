@@ -19,5 +19,5 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
     // admin 查看所有用户的最近20条对话
     List<Conversation> findTop20ByOrderByUpdatedAtDesc();
 
-    List<Conversation> findTop20ByTitleNotOrderByUpdatedAtDesc(String title);
+    List<Conversation> findByTitleNotOrderByUpdatedAtDesc(String title);
 }

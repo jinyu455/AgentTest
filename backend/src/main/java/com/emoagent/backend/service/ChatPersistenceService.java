@@ -103,7 +103,7 @@ public class ChatPersistenceService {
     // admin 查看所有用户的最近20条对话记录
     @Transactional(readOnly = true)
     public List<Map<String, Object>> allConversations() {
-        return conversationRepository.findTop20ByTitleNotOrderByUpdatedAtDesc(PROFILE_CONVERSATION_TITLE).stream()
+        return conversationRepository.findByTitleNotOrderByUpdatedAtDesc(PROFILE_CONVERSATION_TITLE).stream()
                 .map(this::conversationToMap)
                 .toList();
     }
