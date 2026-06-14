@@ -90,17 +90,17 @@ public class ChatPersistenceService {
                 .toList();
     }
 
-    // 为前端提供用户的最近20条对话记录
+    // 为前端提供用户的对话记录
     @Transactional(readOnly = true)
     public List<Map<String, Object>> conversationsForUser(String userId) {
-        return conversationRepository.findTop20ByUserIdAndTitleNotOrderByUpdatedAtDesc(
+        return conversationRepository.findByUserIdAndTitleNotOrderByUpdatedAtDesc(
                         userId,
                         PROFILE_CONVERSATION_TITLE).stream()
                 .map(this::conversationToMap)
                 .toList();
     }
 
-    // admin 查看所有用户的最近20条对话记录
+    // admin 查看所有用户的对话记录
     @Transactional(readOnly = true)
     public List<Map<String, Object>> allConversations() {
         return conversationRepository.findByTitleNotOrderByUpdatedAtDesc(PROFILE_CONVERSATION_TITLE).stream()
