@@ -122,6 +122,19 @@ public class ChatPersistenceService {
     // 查询一个对话里面完整聊天记录
     @Transactional(readOnly = true)
     public List<Map<String, Object>> messagesForConversation(String conversationId, String userId) {
+        return messagesForConversation(conversationId, userId, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> messagesForConversation(String conversationId, String userId, boolean admin) {
+        if (admin) {
+            conversationRepository.findById(conversationId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
+            return chatMessageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
+                    .map(this::historyItem)
+                    .toList();
+        }
+
         conversationRepository.findByIdAndUserId(conversationId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
 
@@ -329,7 +342,46 @@ public class ChatPersistenceService {
         Map<String, Object> payload = new HashMap<>();
         payload.put("user_id", userId);
         payload.put("emotion_records", emotionRecords);
+        if (userId != null) {
+            Map<String, Object> sampleConversation = latestConversationSample(userId);
+            payload.put("sample_conversation", sampleConversation);
+            payload.put("chat_history", sampleConversation.getOrDefault("messages", List.of()));
+        } else {
+            payload.put("chat_history", List.of());
+        }
         return payload;
+    }
+
+    private Map<String, Object> latestConversationSample(String userId) {
+        Map<String, Object> sample = new LinkedHashMap<>();
+        List<Conversation> conversations =
+                conversationRepository.findTop20ByUserIdAndTitleNotOrderByUpdatedAtDesc(userId, PROFILE_CONVERSATION_TITLE);
+
+        for (Conversation conversation : conversations) {
+            List<Map<String, Object>> messages = chatMessageRepository
+                    .findByConversationIdOrderByCreatedAtAsc(conversation.getId()).stream()
+                    .filter(message -> "user".equals(message.getRole()) || "assistant".equals(message.getRole()))
+                    .limit(20)
+                    .map(message -> {
+                        Map<String, Object> item = new LinkedHashMap<>();
+                        item.put("role", message.getRole());
+                        item.put("content", message.getContent());
+                        item.put("created_at", message.getCreatedAt() != null ? message.getCreatedAt().toString() : "");
+                        return item;
+                    })
+                    .toList();
+
+            if (!messages.isEmpty()) {
+                sample.put("conversation_id", conversation.getId());
+                sample.put("title", conversation.getTitle());
+                sample.put("updated_at", conversation.getUpdatedAt() != null ? conversation.getUpdatedAt().toString() : "");
+                sample.put("messages", messages);
+                return sample;
+            }
+        }
+
+        sample.put("messages", List.of());
+        return sample;
     }
 
     // 获取用户画像统计数据

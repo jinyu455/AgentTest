@@ -1,4 +1,4 @@
-# EmoAgent Frontend
+# Emotion Frontend
 
 轻量静态聊天前端，默认 API 地址为 `http://localhost:8080`，接口路径由前端统一拼接。
 

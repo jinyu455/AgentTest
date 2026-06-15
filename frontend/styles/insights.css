@@ -2,6 +2,16 @@
   overflow-y: auto;
 }
 
+.user-insight-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.user-insight-content[hidden] {
+  display: none;
+}
+
 .panel-heading h2 {
   font-size: 1.2rem;
 }

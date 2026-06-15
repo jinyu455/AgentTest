@@ -2,7 +2,7 @@
 @import url("./styles/auth.css");
 @import url("./styles/layout.css");
 @import url("./styles/sidebar.css");
-@import url("./styles/chat.css");
+@import url("./styles/chat.css?v=20260615-admin-vertical-scroll");
 @import url("./styles/insights.css");
-@import url("./styles/history.css");
+@import url("./styles/history.css?v=20260615-admin-vertical-scroll");
 @import url("./styles/responsive.css");

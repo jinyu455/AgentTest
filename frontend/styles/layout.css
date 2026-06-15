@@ -8,6 +8,10 @@
   padding: 18px;
 }
 
+.app-shell.admin-mode {
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+
 .sidebar,
 .chat-panel,
 .insight-panel,
@@ -42,10 +46,10 @@
   place-items: center;
   border-radius: 16px;
   color: white;
-  background: var(--accent);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
 }
 
-.brand-mark svg,
 .send-button svg,
 .history-jump-button svg,
 .back-button svg {
@@ -56,6 +60,13 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
+}
+
+.brand-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .brand h1,

@@ -84,9 +84,14 @@ public class EmotionAnalysisController {
     @GetMapping("/conversations/{conversationId}/messages")
     public List<Map<String, Object>> messages(
             @PathVariable String conversationId,
+            @RequestParam(value = "target_user_id", required = false) String targetUserId,
             HttpServletRequest httpRequest) {
         String userId = (String) httpRequest.getAttribute(JwtAuthFilter.ATTR_USER_ID);
-        return chatPersistenceService.messagesForConversation(conversationId, userId);
+        String role = (String) httpRequest.getAttribute(JwtAuthFilter.ATTR_ROLE);
+        if ("admin".equals(role) && targetUserId != null && !targetUserId.isBlank()) {
+            return chatPersistenceService.messagesForConversation(conversationId, targetUserId);
+        }
+        return chatPersistenceService.messagesForConversation(conversationId, userId, "admin".equals(role));
     }
 
     // user 看自己的统计，admin 可选 target_user_id
