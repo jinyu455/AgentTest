@@ -458,6 +458,10 @@ function fixedUserAvatarMarkup(role = "user") {
   return `<img src="${src}" alt="${label}" />`;
 }
 
+function assistantLogoMarkup() {
+  return `<img src="./image/logo.png" alt="Emotion" />`;
+}
+
 function renderMessages(scrollToBottom = false) {
   const welcome = {
     role: "assistant",
@@ -465,18 +469,27 @@ function renderMessages(scrollToBottom = false) {
   };
   const messages = state.messages.length ? state.messages : [welcome];
   els.messageList.innerHTML = messages.map(messageTemplate).join("");
+  normalizeAssistantAvatars();
   if (scrollToBottom) {
     els.messageList.scrollTop = els.messageList.scrollHeight;
   }
 }
 
+function normalizeAssistantAvatars() {
+  els.messageList?.querySelectorAll(".message.assistant .avatar").forEach((avatar) => {
+    if (avatar.textContent.trim() === "E") {
+      avatar.innerHTML = assistantLogoMarkup();
+    }
+  });
+}
+
 function messageTemplate(message) {
   const isUser = message.role === "user";
   const chips = message.analysis ? insightChips(message.analysis) : "";
-  const avatar = isUser ? fixedUserAvatarMarkup("user") : "E";
+  const avatar = isUser ? fixedUserAvatarMarkup("user") : assistantLogoMarkup();
   return `
     <article class="message ${isUser ? "user" : "assistant"}">
-      <div class="avatar" aria-hidden="true">${isUser ? avatar : escapeHtml(avatar)}</div>
+      <div class="avatar" aria-hidden="true">${avatar}</div>
       <div class="bubble">
         <p>${escapeHtml(message.content)}</p>
         ${chips}
@@ -506,7 +519,7 @@ function addLoadingMessage() {
     "beforeend",
     `
       <article class="message assistant loading" id="${id}">
-        <div class="avatar" aria-hidden="true">E</div>
+        <div class="avatar" aria-hidden="true">${assistantLogoMarkup()}</div>
         <div class="bubble">
           <div class="typing" aria-label="正在回复">
             <span></span><span></span><span></span>
