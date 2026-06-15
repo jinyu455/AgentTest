@@ -107,18 +107,15 @@
 
 .combo-chart {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 520px;
   overflow-x: auto;
   overflow-y: hidden;
   padding-bottom: 8px;
 }
 
-.combo-chart.is-scrollable-chart {
-  justify-content: flex-start;
-}
-
 .combo-chart svg {
+  flex: 0 0 auto;
   display: block;
   max-width: none;
   height: 500px;
@@ -195,6 +192,11 @@
 .admin-actions {
   display: flex;
   gap: 10px;
+}
+
+.admin-main-content .admin-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
 }
 
 .admin-logout-button {
@@ -318,7 +320,8 @@
   backdrop-filter: blur(18px);
 }
 
-.admin-user-card.is-open .admin-user-list {
+.admin-user-card.is-open .admin-user-list,
+.admin-sidebar-search.is-open .admin-user-list {
   display: grid;
   gap: 8px;
 }
@@ -392,7 +395,7 @@
 
 .admin-tab-panel {
   display: grid;
-  gap: 18px;
+  gap: 24px;
   min-height: 0;
   overflow: visible;
   padding: 4px 4px 8px;
@@ -404,11 +407,63 @@
 }
 
 .admin-tab-panel .combo-chart-card {
-  min-height: 620px;
+  min-height: 640px;
 }
 
 .admin-tab-panel .combo-chart {
-  min-height: 520px;
+  min-height: 540px;
+}
+
+.admin-main-content .history-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-main-content .history-detail-grid,
+.admin-main-content .admin-copy-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-main-content .combo-chart-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  min-height: 650px;
+  overflow: hidden;
+  padding: 18px;
+}
+
+.admin-main-content .combo-chart {
+  display: block;
+  width: 100%;
+  height: 548px;
+  min-height: 0;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  padding-bottom: 20px;
+  scrollbar-gutter: stable;
+  scrollbar-color: rgba(32, 32, 39, 0.42) rgba(32, 32, 39, 0.08);
+  scrollbar-width: auto;
+}
+
+.admin-main-content .combo-chart svg {
+  display: block;
+  height: 500px;
+}
+
+.admin-main-content .combo-chart::-webkit-scrollbar {
+  height: 12px;
+}
+
+.admin-main-content .combo-chart::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(32, 32, 39, 0.08);
+}
+
+.admin-main-content .combo-chart::-webkit-scrollbar-thumb {
+  border: 3px solid rgba(255, 250, 242, 0.92);
+  border-radius: 999px;
+  background: rgba(32, 32, 39, 0.45);
 }
 
 .admin-status {

@@ -12,6 +12,7 @@ const state = {
   messages: [],
   lastProfileSignal: null,
   adminUsers: [],
+  adminAllConversations: [],
   adminTargetUserId: "",
   adminSearchOpen: false,
   adminActiveTab: "style",
@@ -70,7 +71,6 @@ function collectElements() {
     adminDominantEmotion: document.querySelector("#adminDominantEmotion"),
     adminEmotionDistributionList: document.querySelector("#adminEmotionDistributionList"),
     adminEmotionalPatterns: document.querySelector("#adminEmotionalPatterns"),
-    adminLogoutButton: document.querySelector("#adminLogoutButton"),
     adminMbti: document.querySelector("#adminMbti"),
     adminStatus: document.querySelector("#adminStatus"),
     adminTabs: document.querySelectorAll("[data-admin-tab]"),
@@ -83,6 +83,9 @@ function collectElements() {
     adminUserList: document.querySelector("#adminUserList"),
     adminUserSearch: document.querySelector("#adminUserSearch"),
     adminUserSearchButton: document.querySelector("#adminUserSearchButton"),
+    adminMainContent: document.querySelector(".admin-main-content"),
+    adminMainTitle: document.querySelector("#adminMainTitle"),
+    adminSidebarTabs: document.querySelector(".admin-sidebar-tabs"),
     insightPanel: document.querySelector(".insight-panel"),
     loginButton: document.querySelector("#loginButton"),
     loginForm: document.querySelector("#loginForm"),
@@ -105,7 +108,9 @@ function collectElements() {
     sarcasmValue: document.querySelector("#sarcasmValue"),
     secondaryEmotion: document.querySelector("#secondaryEmotion"),
     sendButton: document.querySelector("#sendButton"),
+    sidebar: document.querySelector(".sidebar"),
     userMiniAvatar: document.querySelector("#userMiniAvatar"),
+    userInsightContent: document.querySelector(".user-insight-content"),
   };
 }
 
@@ -124,13 +129,18 @@ function bindEvents() {
   els.registerForm.addEventListener("submit", handleRegister);
   els.refreshCaptchaButton.addEventListener("click", loadCaptcha);
   els.logoutButton.addEventListener("click", () => logout());
-  els.adminLogoutButton.addEventListener("click", () => logout());
   els.adminUserList.addEventListener("click", handleAdminUserClick);
   els.adminTabs.forEach((tab) => {
     tab.addEventListener("click", () => switchAdminTab(tab.dataset.adminTab));
   });
-  els.adminUserSearch.addEventListener("input", renderAdminUsers);
-  els.adminUserSearch.addEventListener("search", renderAdminUsers);
+  els.adminUserSearch.addEventListener("input", () => {
+    state.adminSearchOpen = true;
+    renderAdminUsers();
+  });
+  els.adminUserSearch.addEventListener("search", () => {
+    state.adminSearchOpen = true;
+    renderAdminUsers();
+  });
   els.adminUserSearch.addEventListener("focus", () => {
     state.adminSearchOpen = true;
     renderAdminUsers();
@@ -138,12 +148,13 @@ function bindEvents() {
   els.adminUserSearch.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      renderAdminUsers();
+      selectFirstVisibleAdminUser();
     }
   });
   els.adminUserSearchButton.addEventListener("click", () => {
     state.adminSearchOpen = true;
     renderAdminUsers();
+    selectFirstVisibleAdminUser();
   });
   document.addEventListener("click", (event) => {
     if (!els.adminUserSearchCard?.contains(event.target)) {
@@ -152,7 +163,15 @@ function bindEvents() {
     }
   });
   els.chatForm.addEventListener("submit", handleSubmit);
-  els.newChatButton.addEventListener("click", resetConversation);
+  els.newChatButton.addEventListener("click", () => {
+    if (isAdminMode()) {
+      state.adminSearchOpen = true;
+      renderAdminUsers();
+      els.adminUserSearch.focus();
+      return;
+    }
+    resetConversation();
+  });
   els.conversationList.addEventListener("click", handleConversationListClick);
   els.openHistoryButton.addEventListener("click", openHistoryPage);
   els.backToChatButton.addEventListener("click", closeHistoryPage);
@@ -213,11 +232,20 @@ class FaceRating {
   }
 }
 
+function isAdminMode() {
+  return state.auth?.role === "admin";
+}
+
+function selectedAdminUser() {
+  return state.adminUsers.find((user) => user.id === state.adminTargetUserId) || null;
+}
+
 function renderRoute() {
   const isAuthed = Boolean(state.auth?.token);
   const isAdmin = state.auth?.role === "admin";
   els.authView.hidden = isAuthed;
   els.appShell.hidden = !isAuthed;
+  els.appShell.classList.toggle("admin-mode", isAuthed && isAdmin);
   closeHistoryPage({ loadChat: false });
   els.adminDashboard.hidden = true;
 
@@ -228,18 +256,39 @@ function renderRoute() {
   }
 
   if (isAdmin) {
-    els.chatPanel.hidden = true;
+    els.sidebar.hidden = false;
+    els.chatPanel.hidden = false;
     els.insightPanel.hidden = true;
-    document.querySelector(".sidebar").hidden = true;
-    els.adminDashboard.hidden = false;
+    els.userInsightContent.hidden = true;
+    els.adminMainContent.hidden = false;
+    els.adminSidebarTabs.hidden = false;
+    els.adminUserSearchCard.hidden = false;
+    els.newChatButton.innerHTML = `
+      <span aria-hidden="true">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m16.5 16.5 4 4" /></svg>
+      </span>
+      搜索聊天
+    `;
+    renderCurrentUser();
+    renderConversation();
+    renderMessages();
+    renderConversationList();
     switchAdminTab(state.adminActiveTab || "style");
+    showAdminDashboardView(state.adminActiveTab || "style");
     loadAdminUsers();
     return;
   }
 
-  document.querySelector(".sidebar").hidden = false;
+  els.sidebar.hidden = false;
   els.chatPanel.hidden = false;
   els.insightPanel.hidden = false;
+  els.userInsightContent.hidden = false;
+  els.adminMainContent.hidden = true;
+  els.adminSidebarTabs.hidden = true;
+  els.messageList.hidden = false;
+  els.chatPanel.classList.remove("showing-admin-dashboard");
+  els.adminUserSearchCard.hidden = true;
+  els.newChatButton.innerHTML = `<span aria-hidden="true">+</span>新会话`;
   renderCurrentUser();
   renderMessages();
   renderConversation();
@@ -280,9 +329,7 @@ async function handleLogin(event) {
       role: data.role || "user",
     };
     localStorage.setItem(AUTH_KEY, JSON.stringify(state.auth));
-    setAuthMessage("");
-    restoreState();
-    renderRoute();
+    window.location.reload();
   } catch (error) {
     setAuthMessage(error.message || "登录失败", "error");
   } finally {
@@ -401,20 +448,14 @@ function renderCurrentUser() {
   const username = state.auth?.username || "未登录";
   els.currentUsername.textContent = username;
   els.currentUserRole.textContent = state.auth?.role || "user";
-  els.userMiniAvatar.innerHTML = fixedUserAvatarSvg(username);
+  els.userMiniAvatar.innerHTML = fixedUserAvatarMarkup(state.auth?.role);
 }
 
-function fixedUserAvatarSvg(username) {
-  const label = (username || "你").slice(0, 1).toUpperCase() || "你";
-  return `
-    <svg viewBox="0 0 100 100" role="img" aria-label="用户头像">
-      <rect width="100" height="100" rx="24" fill="#137a74" />
-      <circle cx="28" cy="32" r="18" fill="#436fb0" opacity="0.55" />
-      <circle cx="72" cy="28" r="12" fill="#f0bc42" opacity="0.72" />
-      <circle cx="62" cy="72" r="22" fill="#fffaf2" opacity="0.22" />
-      <text x="50" y="60" text-anchor="middle" fill="white" font-size="34" font-weight="900">${escapeHtml(label)}</text>
-    </svg>
-  `;
+function fixedUserAvatarMarkup(role = "user") {
+  const isAdmin = role === "admin";
+  const src = isAdmin ? "./image/admin_avatar.png" : "./image/user_avatar.png";
+  const label = isAdmin ? "管理员头像" : "用户头像";
+  return `<img src="${src}" alt="${label}" />`;
 }
 
 function renderMessages(scrollToBottom = false) {
@@ -432,10 +473,10 @@ function renderMessages(scrollToBottom = false) {
 function messageTemplate(message) {
   const isUser = message.role === "user";
   const chips = message.analysis ? insightChips(message.analysis) : "";
-  const avatar = isUser ? (state.auth?.username || "你").slice(0, 1).toUpperCase() : "E";
+  const avatar = isUser ? fixedUserAvatarMarkup("user") : "E";
   return `
     <article class="message ${isUser ? "user" : "assistant"}">
-      <div class="avatar" aria-hidden="true">${escapeHtml(avatar || "你")}</div>
+      <div class="avatar" aria-hidden="true">${isUser ? avatar : escapeHtml(avatar)}</div>
       <div class="bubble">
         <p>${escapeHtml(message.content)}</p>
         ${chips}
@@ -501,6 +542,15 @@ function updateInsights(analysis) {
 
 function renderConversation(lastText) {
   const title = state.messages.find((message) => message.role === "user")?.content || lastText;
+  if (isAdminMode()) {
+    const user = selectedAdminUser();
+    if (!user) {
+      els.conversationTitle.textContent = "选择用户后查看聊天";
+      return;
+    }
+    els.conversationTitle.textContent = title ? clamp(title, 28) : `正在查看 ${user.name} 的会话`;
+    return;
+  }
   els.conversationTitle.textContent = title ? clamp(title, 24) : "开始一次情绪对话";
   if (els.conversationIdLabel) {
     els.conversationIdLabel.textContent = "";
@@ -509,7 +559,7 @@ function renderConversation(lastText) {
 
 function renderConversationList() {
   if (state.conversationsStatus === "loading") {
-    els.conversationList.innerHTML = `<p class="empty-history">正在加载历史会话...</p>`;
+    els.conversationList.innerHTML = `<p class="empty-history">正在加载会话...</p>`;
     return;
   }
 
@@ -519,7 +569,8 @@ function renderConversationList() {
   }
 
   if (!state.conversations.length) {
-    els.conversationList.innerHTML = `<p class="empty-history">暂无历史会话，发送第一条消息后会出现在这里。</p>`;
+    const emptyText = isAdminMode() ? "该用户暂无聊天记录。" : "暂无历史会话，发送第一条消息后会出现在这里。";
+    els.conversationList.innerHTML = `<p class="empty-history">${emptyText}</p>`;
     return;
   }
 
@@ -618,22 +669,33 @@ async function loadAdminUsers() {
   try {
     const response = await apiFetch("/api/emotion/conversations");
     const conversations = await response.json();
+    state.adminAllConversations = Array.isArray(conversations) ? conversations : [];
     const users = Array.isArray(conversations) ? buildAdminUsers(conversations) : [];
     state.adminUsers = users;
     if (!users.length) {
       state.adminTargetUserId = "";
+      state.conversations = [];
+      state.conversationsStatus = "ready";
       renderAdminUsers();
+      renderConversationList();
       renderAdminDashboard(null);
       setAdminStatus("暂无可生成画像的用户。需要普通用户先产生会话和情绪记录。", "error");
       return;
     }
-    state.adminTargetUserId = users[0].id;
+    if (!state.adminTargetUserId || !users.some((user) => user.id === state.adminTargetUserId)) {
+      state.adminTargetUserId = users[0].id;
+    }
     renderAdminUsers();
+    await loadAdminConversations();
     await loadAdminDashboard();
   } catch (error) {
+    state.adminAllConversations = [];
     state.adminUsers = [];
     state.adminTargetUserId = "";
+    state.conversations = [];
+    state.conversationsStatus = "error";
     renderAdminUsers();
+    renderConversationList();
     renderAdminDashboard(null);
     setAdminStatus(error.message || "用户列表加载失败", "error");
   }
@@ -651,9 +713,11 @@ function buildAdminUsers(conversations) {
       name: conversation.username || conversation.user_name || userId,
       count: 0,
       latest: "",
+      conversations: [],
     };
     existing.name = conversation.username || conversation.user_name || existing.name || userId;
     existing.count += 1;
+    existing.conversations.push(conversation);
     if (!existing.latest || String(conversation.updated_at || "") > existing.latest) {
       existing.latest = conversation.updated_at || "";
     }
@@ -671,10 +735,7 @@ function renderAdminUsers() {
   }
   const current = state.adminUsers.find((user) => user.id === state.adminTargetUserId);
   els.adminTargetLabel.textContent = current ? current.name : "请选择一个用户";
-  const query = els.adminUserSearch.value.trim().toLowerCase();
-  const visibleUsers = query
-    ? state.adminUsers.filter((user) => user.name.toLowerCase().includes(query))
-    : state.adminUsers.slice(0, 6);
+  const visibleUsers = visibleAdminUsers();
   if (!visibleUsers.length) {
     els.adminUserList.innerHTML = `<p class="chart-empty">没有匹配的用户。</p>`;
     return;
@@ -689,20 +750,74 @@ function renderAdminUsers() {
     .join("");
 }
 
+function visibleAdminUsers() {
+  const query = els.adminUserSearch.value.trim().toLowerCase();
+  if (!query) {
+    return state.adminUsers.slice(0, 6);
+  }
+  return state.adminUsers.filter((user) => {
+    const name = String(user.name || "").toLowerCase();
+    const id = String(user.id || "").toLowerCase();
+    return name.includes(query) || id.includes(query);
+  });
+}
+
+async function selectFirstVisibleAdminUser() {
+  const [user] = visibleAdminUsers();
+  if (!user) {
+    renderAdminUsers();
+    return;
+  }
+  await selectAdminUser(user.id);
+}
+
 async function handleAdminUserClick(event) {
   const button = event.target.closest("[data-admin-user-id]");
   if (!button) {
     return;
   }
-  const sameUser = button.dataset.adminUserId === state.adminTargetUserId;
-  state.adminTargetUserId = button.dataset.adminUserId;
+  await selectAdminUser(button.dataset.adminUserId);
+}
+
+async function selectAdminUser(userId) {
+  const sameUser = userId === state.adminTargetUserId;
+  state.adminTargetUserId = userId;
   state.adminSearchOpen = false;
   els.adminUserSearch.value = "";
   renderAdminUsers();
   if (sameUser) {
     return;
   }
+  state.conversationId = null;
+  state.messages = [];
+  renderConversation();
+  renderMessages();
+  showAdminDashboardView(state.adminActiveTab || "style");
+  await loadAdminConversations();
   await loadAdminDashboard();
+}
+
+async function loadAdminConversations() {
+  if (!state.adminTargetUserId) {
+    state.conversations = [];
+    state.conversationsStatus = "ready";
+    renderConversationList();
+    return;
+  }
+
+  state.conversationsStatus = "loading";
+  renderConversationList();
+  try {
+    const response = await apiFetch(`/api/emotion/conversations?target_user_id=${encodeURIComponent(state.adminTargetUserId)}`);
+    const conversations = await response.json();
+    state.conversations = Array.isArray(conversations) ? conversations : [];
+    state.conversationsStatus = "ready";
+    renderConversationList();
+  } catch {
+    state.conversations = [];
+    state.conversationsStatus = "error";
+    renderConversationList();
+  }
 }
 
 function switchAdminTab(tabName = "style") {
@@ -711,12 +826,44 @@ function switchAdminTab(tabName = "style") {
   els.adminTabPanels.forEach((panel) => {
     panel.hidden = panel.dataset.adminPanel !== tabName;
   });
+  if (els.adminMainTitle) {
+    els.adminMainTitle.textContent = tabName === "trend" ? "情绪变化" : "用户画像";
+  }
+  if (isAdminMode()) {
+    showAdminDashboardView(tabName);
+  }
+}
+
+function showAdminDashboardView(tabName = "style") {
+  if (!isAdminMode()) {
+    return;
+  }
+  state.adminActiveTab = tabName;
+  els.chatPanel.classList.add("showing-admin-dashboard");
+  els.messageList.hidden = true;
+  els.adminMainContent.hidden = false;
+  els.adminTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.adminTab === tabName));
+  els.adminTabPanels.forEach((panel) => {
+    panel.hidden = panel.dataset.adminPanel !== tabName;
+  });
+  if (els.adminMainTitle) {
+    els.adminMainTitle.textContent = tabName === "trend" ? "情绪变化" : "用户画像";
+  }
+}
+
+function showAdminConversationView() {
+  if (!isAdminMode()) {
+    return;
+  }
+  els.adminMainContent.hidden = true;
+  els.messageList.hidden = false;
+  els.chatPanel.classList.remove("showing-admin-dashboard");
 }
 
 function renderAdminDashboard(profile) {
   const total = asNumber(profile?.total_records) ?? 0;
   const avgIntensity = asNumber(profile?.avg_intensity);
-  els.adminTotalRecords.textContent = String(total);
+  els.adminTotalRecords.textContent = String(selectedAdminUser()?.count ?? total);
   els.adminDominantEmotion.textContent = normalizeValue(profile?.dominant_emotion, "--");
   els.adminAvgIntensity.textContent = avgIntensity != null ? avgIntensity.toFixed(1) : "--";
   els.adminMbti.textContent = normalizeValue(profile?.mbti, "--");
@@ -748,20 +895,21 @@ function renderComboChart(profile, container = els.emotionComboChart) {
     return;
   }
 
-  const minWidth = 1180;
-  const shouldScroll = records.length > 16;
-  container.classList.toggle("is-scrollable-chart", shouldScroll);
-  const width = shouldScroll ? Math.max(minWidth, records.length * 112 + 140) : minWidth;
-  const svgWidthStyle = shouldScroll ? `width: ${width}px;` : `width: 100%; min-width: ${minWidth}px;`;
   const height = 500;
-  const padding = { top: 62, right: 44, bottom: 86, left: 56 };
-  const chartWidth = width - padding.left - padding.right;
+  const padding = { top: 62, right: 96, bottom: 86, left: 56 };
+  const pointSpacing = 132;
+  const barWidth = 42;
+  const minVisiblePoints = 8;
+  const plotSlots = Math.max(records.length, minVisiblePoints);
+  const chartWidth = plotSlots * pointSpacing;
+  const width = padding.left + chartWidth + padding.right;
+  const shouldScroll = width > (container.clientWidth || 0);
+  container.classList.toggle("is-scrollable-chart", shouldScroll);
+  const svgWidthStyle = `width: ${width}px; min-width: ${width}px;`;
   const chartHeight = height - padding.top - padding.bottom;
   const baseline = padding.top + chartHeight;
-  const barSlot = chartWidth / records.length;
-  const barWidth = Math.max(10, Math.min(42, barSlot * 0.48));
   const points = records.map((record, index) => {
-    const x = padding.left + barSlot * index + barSlot / 2;
+    const x = padding.left + pointSpacing * index + pointSpacing / 2;
     const y = baseline - (record.intensity / 100) * chartHeight;
     return { ...record, x, y };
   });
@@ -796,13 +944,7 @@ function renderComboChart(profile, container = els.emotionComboChart) {
     })
     .join("");
   const pointLabels = points
-    .map((point, index) => {
-      const step = Math.max(1, Math.ceil(points.length / 8));
-      if (points.length > 10 && index % step !== 0 && index !== points.length - 1) {
-        return "";
-      }
-      return `<text x="${point.x.toFixed(1)}" y="${Math.max(22, point.y - 12).toFixed(1)}" text-anchor="middle">${escapeHtml(point.emotion || String(point.intensity))}</text>`;
-    })
+    .map((point) => `<text x="${point.x.toFixed(1)}" y="${Math.max(22, point.y - 12).toFixed(1)}" text-anchor="middle">${escapeHtml(point.emotion || String(point.intensity))}</text>`)
     .join("");
   const grid = [0, 50, 100]
     .map((value) => {
@@ -872,8 +1014,12 @@ async function handleConversationListClick(event) {
 
 function setBusy(isBusy) {
   state.busy = isBusy;
-  els.sendButton.disabled = isBusy;
-  els.messageInput.disabled = isBusy;
+  if (els.sendButton) {
+    els.sendButton.disabled = isBusy;
+  }
+  if (els.messageInput) {
+    els.messageInput.disabled = isBusy || isAdminMode();
+  }
 }
 
 function setAuthBusy(isBusy) {
@@ -896,8 +1042,12 @@ async function loadConversations() {
     state.conversationsStatus = "ready";
     renderConversationList();
 
-    if (state.conversationId && !state.messages.length) {
-      await loadConversationMessages(state.conversationId, false);
+    if (!state.messages.length) {
+      const savedConversation = state.conversations.find((conversation) => conversation.id === state.conversationId);
+      const conversationToOpen = savedConversation || state.conversations[0];
+      if (conversationToOpen) {
+        await loadConversationMessages(conversationToOpen.id, false);
+      }
     }
   } catch {
     state.conversations = [];
@@ -909,7 +1059,9 @@ async function loadConversations() {
 async function loadConversationMessages(conversationId, refreshList = true) {
   setBusy(true);
   try {
-    const response = await apiFetch(`/api/emotion/conversations/${encodeURIComponent(conversationId)}/messages`);
+    const targetParam =
+      isAdminMode() && state.adminTargetUserId ? `?target_user_id=${encodeURIComponent(state.adminTargetUserId)}` : "";
+    const response = await apiFetch(`/api/emotion/conversations/${encodeURIComponent(conversationId)}/messages${targetParam}`);
     const messages = await response.json();
     state.conversationId = conversationId;
     state.messages = Array.isArray(messages)
@@ -918,10 +1070,17 @@ async function loadConversationMessages(conversationId, refreshList = true) {
           content: message.content,
         }))
       : [];
-    updateInsights(null);
+    if (!isAdminMode()) {
+      updateInsights(null);
+    }
     renderConversation();
     renderMessages(true);
-    persistState();
+    if (isAdminMode()) {
+      showAdminConversationView();
+    }
+    if (!isAdminMode()) {
+      persistState();
+    }
     if (refreshList) {
       renderConversationList();
     }

@@ -7,6 +7,10 @@
     grid-template-columns: 240px minmax(0, 1fr);
   }
 
+  .app-shell.admin-mode {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
   .insight-panel {
     display: none;
   }
@@ -85,6 +89,10 @@
     height: auto;
     min-height: 100vh;
     padding: 10px;
+  }
+
+  .app-shell.admin-mode {
+    grid-template-columns: 1fr;
   }
 
   .sidebar {
