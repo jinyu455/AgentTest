@@ -74,5 +74,16 @@ agents/service/.python-version
 start.md
 deploy/
 docs/大作业文档参考说明.docx
+docs/测试计划文档.docx
+docs/概要设计文档.docx
+docs/软件计划文档.docx
+docs/需求分析文档.docx
+
+test_data/
+docs/admin_user.png
+docs/benchmark_comparison.svg
+
+mind_map/
+docs/logo.png
 
 benchmark/
