@@ -1,0 +1,72 @@
+name: Deploy
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    # 仅在 CI 成功或手动触发时执行
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Upload code to server
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }}" \
+            --exclude '.git' \
+            --exclude '.env' \
+            --exclude '*.sqlite3' \
+            --exclude 'node_modules' \
+            --exclude 'target' \
+            --exclude '__pycache__' \
+            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/emotion_agent/
+      - name: Restart services
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+
+            # 重启服务
+            sudo systemctl daemon-reload
+            sudo systemctl restart emotion-agent-python
+            sudo systemctl restart nginx
+            sudo systemctl restart emotion-agent
+
+            # 等待 Spring Boot 启动（最多 30 秒）
+            echo "Waiting for emotion-agent to become active..."
+            for i in $(seq 1 10); do
+              status=$(sudo systemctl is-active emotion-agent 2>/dev/null || true)
+              if [ "$status" = "active" ]; then
+                echo "emotion-agent is active"
+                break
+              fi
+              echo "  [$i/10] status=$status, waiting 3s..."
+              sleep 3
+            done
+
+            # 验证
+            echo "=== Service Status ==="
+            sudo systemctl is-active emotion-agent-python
+            sudo systemctl is-active nginx
+            sudo systemctl is-active emotion-agent
