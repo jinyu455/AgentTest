@@ -1,0 +1,2484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emotion — 情绪感知 AI 对话系统</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #f0ebe3;
+    --surface: #f5f0e8;
+    --surface-hi: #faf6ee;
+    --white: #fffcf5;
+    --ink: #1e1e24;
+    --ink2: #3a3a44;
+    --muted: #8a8690;
+    --line: #ddd7cc;
+    --accent: #1a8a7e;
+    --accent-d: #14706a;
+    --coral: #d4573e;
+    --yellow: #e8a832;
+    --blue: #3d66a8;
+    --violet: #6248a0;
+    --pink: #e8899e;
+    --pink-bg: #f9dce4;
+    --neo: 6px 6px 14px rgba(47,43,36,0.13), -6px -6px 14px rgba(255,252,245,0.85);
+    --neo-sm: 3px 3px 8px rgba(47,43,36,0.1), -3px -3px 8px rgba(255,252,245,0.8);
+    --neo-inset: inset 3px 3px 8px rgba(47,43,36,0.1), inset -3px -3px 8px rgba(255,252,245,0.7);
+    --radius: 20px;
+    --radius-sm: 12px;
+    --transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ━━━ Scrollbar ━━━ */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 9px; }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     HOME VIEW
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .home-view {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: 100vh;
+    opacity: 1;
+    transition: opacity 0.4s, grid-template-columns 0.5s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+  }
+  .home-view.exit { opacity: 0; pointer-events: none; }
+  .home-view.collapsed { grid-template-columns: 0px 1fr; }
+  .home-view.collapsed .overview { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+
+  /* ── Left: Overview ── */
+  .overview {
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 22px;
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+    transition: transform 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s;
+    position: relative;
+    word-break: break-word;
+  }
+  .overview-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .overview-logo {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: var(--neo);
+    flex-shrink: 0;
+  }
+  .overview-logo img { width: 100%; height: 100%; object-fit: cover; }
+  .overview-brand h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .overview-brand p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .overview-desc {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--ink2);
+  }
+
+  .tech-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .tech-item {
+    padding: 14px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-hi);
+    box-shadow: var(--neo-sm);
+  }
+  .tech-item .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .tech-item .value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .overview-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(145deg, #1ec4b5 0%, var(--accent) 40%, var(--accent-d) 100%);
+    color: white;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(26,138,126,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.15);
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: fit-content;
+    position: relative;
+  }
+  .overview-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(26,138,126,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .overview-link svg { width: 16px; height: 16px; }
+
+  /* Toggle button - always visible */
+  .toggle-panel {
+    position: fixed;
+    top: 24px;
+    left: 364px;
+    z-index: 300;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--surface-hi);
+    box-shadow: var(--neo-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    transition: left 0.4s cubic-bezier(0.4,0,0.2,1), color 0.2s, transform 0.3s;
+  }
+  .toggle-panel:hover { color: var(--ink); transform: scale(1.1); }
+  .toggle-panel svg { width: 16px; height: 16px; transition: transform 0.3s; }
+  .home-view.collapsed .toggle-panel { left: 12px; }
+  .home-view.collapsed .toggle-panel svg { transform: rotate(180deg); }
+
+  /* ── Right: Galaxy ── */
+  .galaxy-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: transform 0.5s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* Orbit rings */
+  .orbit-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(221,215,204,0.6);
+    pointer-events: none;
+  }
+  .orbit-ring.r1 { width: 300px; height: 300px; }
+  .orbit-ring.r2 { width: 460px; height: 460px; }
+  .orbit-ring.r3 { width: 620px; height: 620px; }
+  @keyframes ring-rotate { to { transform: rotate(360deg); } }
+  .orbit-ring { animation: ring-rotate 80s linear infinite; }
+  .orbit-ring.r2 { animation-duration: 120s; animation-direction: reverse; }
+  .orbit-ring.r3 { animation-duration: 160s; }
+
+  /* Stars - 4-pointed star shape */
+  .star {
+    position: absolute;
+    pointer-events: none;
+    animation: twinkle 5s ease-in-out infinite;
+  }
+  .star svg {
+    width: 100%;
+    height: 100%;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.15; transform: scale(0.5) rotate(0deg); }
+    50% { opacity: 0.7; transform: scale(1) rotate(20deg); }
+  }
+
+  /* Center hub */
+  .center-hub {
+    position: relative;
+    z-index: 10;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 5px rgba(232,137,158,0.25),
+      0 0 50px rgba(232,137,158,0.15),
+      0 10px 40px rgba(47,43,36,0.1);
+    cursor: pointer;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s;
+    animation: hub-float 7s ease-in-out infinite;
+  }
+  .center-hub:hover {
+    transform: scale(1.06);
+    box-shadow:
+      0 0 0 5px rgba(232,137,158,0.4),
+      0 0 70px rgba(232,137,158,0.25),
+      0 14px 50px rgba(47,43,36,0.14);
+  }
+  .center-hub img { width: 100%; height: 100%; object-fit: cover; }
+  @keyframes hub-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .center-text {
+    position: absolute;
+    z-index: 10;
+    text-align: center;
+    margin-top: 160px;
+    pointer-events: none;
+  }
+  .center-text h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .center-text p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── Home Planets ── */
+  .home-planet {
+    position: absolute;
+    z-index: 5;
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: pfloat 6s ease-in-out infinite;
+  }
+  .home-planet:nth-child(1) { animation-delay: 0s; }
+  .home-planet:nth-child(2) { animation-delay: -1.2s; }
+  .home-planet:nth-child(3) { animation-delay: -2.4s; }
+  .home-planet:nth-child(4) { animation-delay: -3.6s; }
+  .home-planet:nth-child(5) { animation-delay: -4.8s; }
+  @keyframes pfloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  .home-planet:hover { transform: scale(1.15) !important; }
+
+  .p-body {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: box-shadow 0.4s, transform 0.3s;
+  }
+  /* Glass ring */
+  .p-body::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.25);
+    pointer-events: none;
+  }
+  /* Inner glow */
+  .p-body::after {
+    content: '';
+    position: absolute;
+    top: 8px; left: 12px;
+    width: 28px; height: 14px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    filter: blur(4px);
+    pointer-events: none;
+  }
+  .home-planet:hover .p-body {
+    box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+  }
+  .p-body svg { width: 38px; height: 38px; position: relative; z-index: 1; }
+
+  .p-label {
+    text-align: center;
+    margin-top: 12px;
+    white-space: nowrap;
+  }
+  .p-label .name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .p-label .sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  /* Positions — pentagon layout around center */
+  .home-planet[data-id="agent"]    { top: calc(50% - 260px); left: calc(50% - 45px); }
+  .home-planet[data-id="backend"]  { top: calc(50% - 80px);  left: calc(50% + 220px); }
+  .home-planet[data-id="frontend"] { top: calc(50% + 180px); left: calc(50% + 160px); }
+  .home-planet[data-id="cicd"]     { top: calc(50% + 190px); left: calc(50% - 240px); }
+  .home-planet[data-id="test"]     { top: calc(50% - 100px); left: calc(50% - 250px); }
+
+  /* Planet colors — richer gradients with depth */
+  [data-id="agent"]   .p-body { background: linear-gradient(145deg, #15a89a 0%, #1a8a7e 40%, #0d6b62 100%); color: white; box-shadow: 0 6px 24px rgba(26,138,126,0.35); }
+  [data-id="backend"] .p-body { background: linear-gradient(145deg, #e8705a 0%, #d4573e 40%, #b8402e 100%); color: white; box-shadow: 0 6px 24px rgba(212,87,62,0.35); }
+  [data-id="frontend"].p-body { background: linear-gradient(145deg, #8b6dd8 0%, #6248a0 40%, #4a3580 100%); color: white; box-shadow: 0 6px 24px rgba(98,72,160,0.35); }
+  [data-id="cicd"]    .p-body { background: linear-gradient(145deg, #5580c0 0%, #3d66a8 40%, #2d4e88 100%); color: white; box-shadow: 0 6px 24px rgba(61,102,168,0.35); }
+  [data-id="test"]    .p-body { background: linear-gradient(145deg, #f0b840 0%, #e8a832 40%, #c89020 100%); color: white; box-shadow: 0 6px 24px rgba(200,149,32,0.35); }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     DETAIL VIEW
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .detail-view {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    background: var(--bg);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s;
+  }
+  .detail-view.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Detail left panel */
+  .detail-left {
+    padding: 40px 32px;
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, var(--surface-hi) 0%, var(--surface) 100%);
+    box-shadow: var(--neo-sm), inset 0 1px 0 rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.4);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.2s, box-shadow 0.2s, transform 0.2s;
+    width: fit-content;
+    position: relative;
+  }
+  .back-btn:hover { color: var(--ink); box-shadow: var(--neo); transform: translateX(-2px); }
+  .back-btn svg { width: 14px; height: 14px; }
+
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .detail-icon {
+    width: 52px; height: 52px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+    box-shadow: var(--neo-sm), inset 0 1px 0 rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.15);
+    position: relative;
+  }
+  .detail-icon svg { width: 24px; height: 24px; position: relative; z-index: 1; }
+  .detail-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .detail-header p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .detail-server-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(145deg, #1ec4b5 0%, var(--accent) 40%, var(--accent-d) 100%);
+    color: white;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(26,138,126,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.15);
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: fit-content;
+    position: relative;
+  }
+  .detail-server-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(26,138,126,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .detail-server-link svg { width: 13px; height: 13px; }
+
+  /* Content cards */
+  .content-card {
+    padding: 18px 22px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(145deg, var(--surface-hi) 0%, var(--surface) 100%);
+    box-shadow: var(--neo-sm), inset 0 1px 0 rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.35);
+    cursor: pointer;
+    transition: transform 0.25s, box-shadow 0.25s;
+    position: relative;
+    word-break: break-word;
+  }
+  .content-card:hover {
+    transform: translateX(4px);
+    box-shadow: var(--neo), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+  .content-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+  }
+  .content-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+  .content-card p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .content-card .arrow {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--line);
+    font-size: 16px;
+    transition: color 0.2s;
+  }
+  .content-card:hover .arrow { color: var(--muted); }
+
+  /* Detail right: galaxy area */
+  .detail-right {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Detail center planet */
+  .detail-center {
+    position: relative;
+    z-index: 10;
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: var(--neo), 0 0 40px rgba(0,0,0,0.06);
+    animation: hub-float 6s ease-in-out infinite;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  /* Glass ring for detail center */
+  .detail-center::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    pointer-events: none;
+  }
+  /* Inner glow for detail center */
+  .detail-center::after {
+    content: '';
+    position: absolute;
+    top: 12px; left: 16px;
+    width: 36px; height: 18px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    filter: blur(5px);
+    pointer-events: none;
+  }
+  .detail-center svg { width: 44px; height: 44px; position: relative; z-index: 1; }
+
+  /* Detail orbiting sub-planets */
+  .sub-planet {
+    position: absolute;
+    z-index: 5;
+    cursor: pointer;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: pfloat 5.5s ease-in-out infinite;
+  }
+  .sub-planet:hover { transform: scale(1.15) !important; }
+
+  .sp-body {
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+    font-weight: 800;
+    transition: box-shadow 0.4s, transform 0.3s;
+    position: relative;
+  }
+  /* Glass ring for sub-planets */
+  .sp-body::before {
+    content: '';
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.25);
+    pointer-events: none;
+  }
+  /* Inner glow for sub-planets */
+  .sp-body::after {
+    content: '';
+    position: absolute;
+    top: 7px; left: 10px;
+    width: 22px; height: 11px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    filter: blur(3px);
+    pointer-events: none;
+  }
+  .sub-planet:hover .sp-body {
+    box-shadow: 0 10px 32px rgba(0,0,0,0.2);
+  }
+
+  /* Sub-planet color variants */
+  .sp-teal { background: linear-gradient(145deg, #15a89a 0%, #1a8a7e 40%, #0d6b62 100%); box-shadow: 0 6px 20px rgba(26,138,126,0.35); }
+  .sp-coral { background: linear-gradient(145deg, #e8705a 0%, #d4573e 40%, #b8402e 100%); box-shadow: 0 6px 20px rgba(212,87,62,0.35); }
+  .sp-violet { background: linear-gradient(145deg, #8b6dd8 0%, #6248a0 40%, #4a3580 100%); box-shadow: 0 6px 20px rgba(98,72,160,0.35); }
+  .sp-blue { background: linear-gradient(145deg, #5580c0 0%, #3d66a8 40%, #2d4e88 100%); box-shadow: 0 6px 20px rgba(61,102,168,0.35); }
+  .sp-yellow { background: linear-gradient(145deg, #f0b840 0%, #e8a832 40%, #c89020 100%); box-shadow: 0 6px 20px rgba(200,149,32,0.35); }
+  .sp-pink { background: linear-gradient(145deg, #f0a0b4 0%, #e8899e 40%, #d07088 100%); box-shadow: 0 6px 20px rgba(232,137,158,0.35); }
+  .sp-label {
+    text-align: center;
+    margin-top: 8px;
+    white-space: nowrap;
+  }
+  .sp-label .name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .sp-label .desc {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     CONTENT PANEL (right side of detail view)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .content-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 300;
+    background: var(--bg);
+    overflow-y: auto;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(30px);
+    transition: opacity 0.4s, transform 0.4s;
+    padding: 40px 48px 60px;
+  }
+  .content-panel.active {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateX(0);
+  }
+
+  .cp-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .cp-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, var(--surface-hi) 0%, var(--surface) 100%);
+    box-shadow: var(--neo-sm), inset 0 1px 0 rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.4);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.2s, box-shadow 0.2s, transform 0.2s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .cp-back:hover { color: var(--ink); box-shadow: var(--neo); transform: translateX(-2px); }
+  .cp-back svg { width: 14px; height: 14px; }
+
+  .cp-title {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .cp-server {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, #1ec4b5 0%, var(--accent) 40%, var(--accent-d) 100%);
+    color: white;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 14px rgba(26,138,126,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.15);
+    transition: transform 0.2s, box-shadow 0.2s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .cp-server:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,138,126,0.4); }
+  .cp-server svg { width: 13px; height: 13px; }
+
+  /* Content sections */
+  .cp-section {
+    margin-bottom: 32px;
+  }
+  .cp-section h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Tables */
+  .neo-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    box-shadow: var(--neo-sm);
+    font-size: 14px;
+  }
+  .neo-table th {
+    background: var(--surface);
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+  }
+  .neo-table td {
+    padding: 12px 16px;
+    background: var(--surface-hi);
+    border-bottom: 1px solid rgba(221,215,204,0.4);
+  }
+  .neo-table tr:last-child td { border-bottom: none; }
+  .neo-table code {
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: var(--bg);
+    box-shadow: var(--neo-inset);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* Flow diagrams - HTML/CSS */
+  .flow-box {
+    padding: 24px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-hi);
+    box-shadow: var(--neo-sm);
+  }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .flow-node {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    max-width: 560px;
+    width: 100%;
+  }
+  .flow-node.primary { background: var(--accent); color: white; }
+  .flow-node.secondary { background: var(--surface); color: var(--ink); box-shadow: var(--neo-sm); }
+  .flow-node.highlight { background: var(--coral); color: white; }
+  .flow-node.muted { background: var(--line); color: var(--ink2); }
+  .flow-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--line);
+    font-size: 11px;
+    padding: 4px 0;
+  }
+  .flow-arrow::before {
+    content: '';
+    width: 2px;
+    height: 16px;
+    background: var(--line);
+  }
+  .flow-arrow::after {
+    content: '';
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--line);
+  }
+  .flow-branch {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  .flow-branch-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+  }
+  .flow-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    padding: 2px 0;
+  }
+  .flow-connector {
+    width: 100%;
+    height: 2px;
+    background: var(--line);
+    position: relative;
+  }
+  .flow-connector::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    width: 2px;
+    height: 10px;
+    background: var(--line);
+  }
+
+  /* Info cards */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .info-card {
+    padding: 18px 20px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-hi);
+    box-shadow: var(--neo-sm);
+  }
+  .info-card .label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .info-card .value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  /* Inline SVG benchmark */
+  .benchmark-img {
+    width: 100%;
+    max-width: 800px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--neo);
+    overflow: hidden;
+    background: white;
+    padding: 8px;
+  }
+  .benchmark-img img {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+  }
+
+  /* Pipeline diagram */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 20px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-hi);
+    box-shadow: var(--neo-sm);
+  }
+  .pipe-node {
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+  }
+  .pipe-arrow {
+    color: var(--line);
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  /* ━━━ Animations ━━━ */
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in {
+    animation: fade-in-up 0.5s ease-out both;
+  }
+  .animate-in:nth-child(1) { animation-delay: 0.05s; }
+  .animate-in:nth-child(2) { animation-delay: 0.1s; }
+  .animate-in:nth-child(3) { animation-delay: 0.15s; }
+  .animate-in:nth-child(4) { animation-delay: 0.2s; }
+  .animate-in:nth-child(5) { animation-delay: 0.25s; }
+  .animate-in:nth-child(6) { animation-delay: 0.3s; }
+  .animate-in:nth-child(7) { animation-delay: 0.35s; }
+  .animate-in:nth-child(8) { animation-delay: 0.4s; }
+  .animate-in:nth-child(9) { animation-delay: 0.45s; }
+
+  /* ━━━ Responsive ━━━ */
+  @media (max-width: 1024px) {
+    .home-view { grid-template-columns: 1fr; }
+    .overview { display: none; }
+    .toggle-panel { display: none; }
+    .detail-view { grid-template-columns: 1fr; }
+    .detail-left { display: none; }
+    .content-panel { padding: 24px 20px 40px; }
+  }
+
+  /* ━━━ Interactive: clickable items ━━━ */
+  .click-item {
+    padding: 14px 20px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(145deg, var(--surface-hi) 0%, var(--surface) 100%);
+    box-shadow: var(--neo-sm), inset 0 1px 0 rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.35);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .click-item:hover {
+    transform: translateX(4px);
+    box-shadow: var(--neo), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+  .click-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+  }
+  .click-item .item-title {
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .click-item .item-title .arrow-icon {
+    transition: transform 0.3s;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .click-item.open .item-title .arrow-icon {
+    transform: rotate(90deg);
+  }
+  .click-item .item-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, margin-top 0.3s;
+    font-size: 13px;
+    color: var(--ink2);
+    line-height: 1.7;
+  }
+  .click-item.open .item-detail {
+    max-height: 800px;
+    margin-top: 12px;
+  }
+  .click-item .item-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* Benchmark two-column layout */
+  .bench-layout {
+    display: grid;
+    grid-template-columns: 45% 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  .bench-img {
+    border-radius: var(--radius-sm);
+    box-shadow: var(--neo);
+    overflow: hidden;
+    background: white;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+  }
+  .bench-img img {
+    width: 100%;
+    display: block;
+    border-radius: 8px;
+  }
+  .bench-why {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    justify-content: center;
+  }
+  .bench-point {
+    padding: 20px 24px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-hi);
+    box-shadow: var(--neo-sm);
+    border-left: 4px solid var(--accent);
+    flex: 1;
+  }
+  .bench-point .bp-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .bench-point .bp-desc {
+    font-size: 14px;
+    color: var(--ink2);
+    line-height: 1.7;
+  }
+  .bench-point:nth-child(2) { border-left-color: var(--coral); }
+  .bench-point:nth-child(3) { border-left-color: var(--violet); }
+
+  /* Agent prompt summary */
+  .agent-prompt {
+    margin-top: 16px;
+    padding: 16px 20px;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    box-shadow: var(--neo-inset);
+    font-size: 13px;
+    color: var(--ink2);
+    line-height: 1.8;
+  }
+  .agent-prompt strong {
+    color: var(--ink);
+  }
+
+  /* Detail table for db */
+  .detail-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    box-shadow: var(--neo-sm);
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  .detail-table th {
+    background: var(--surface);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+  }
+  .detail-table td {
+    padding: 10px 14px;
+    background: var(--surface-hi);
+    border-bottom: 1px solid rgba(221,215,204,0.4);
+    vertical-align: top;
+  }
+  .detail-table tr:last-child td { border-bottom: none; }
+
+  /* Logo display */
+  .logo-display {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-hi);
+    box-shadow: var(--neo-sm);
+  }
+  .logo-display img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    box-shadow: var(--neo);
+    object-fit: cover;
+  }
+  .logo-display .logo-info h4 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .logo-display .logo-info p {
+    font-size: 14px;
+    color: var(--ink2);
+    line-height: 1.6;
+  }
+
+  /* Screenshot display */
+  .screenshot-frame {
+    border-radius: var(--radius);
+    box-shadow: var(--neo);
+    overflow: hidden;
+    background: white;
+    border: 1px solid var(--line);
+  }
+  .screenshot-frame img {
+    width: 100%;
+    display: block;
+  }
+  .screenshot-bar {
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .screenshot-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--line);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HOME VIEW ═══════════════ -->
+<div class="home-view" id="homeView">
+
+  <!-- Toggle Button (always visible) -->
+  <button class="toggle-panel" onclick="togglePanel()" title="收起/展开">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+
+  <!-- Left: Project Overview -->
+  <div class="overview">
+    <div class="overview-brand">
+      <div class="overview-logo">
+        <img src="../docs/logo.png" alt="Emotion"
+          onerror="this.parentElement.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8899e,#f2a0b3);color:white;font-weight:800;font-size:20px&quot;>E</div>'">
+      </div>
+      <div>
+        <h1>Emotion</h1>
+        <p>情绪感知 AI 对话系统</p>
+      </div>
+    </div>
+
+    <p class="overview-desc">
+      基于多 Agent 架构的情绪感知 AI 对话系统。系统能够实时分析用户输入文本的情绪状态（包括讽刺、混合情绪等复杂场景），并基于情绪分析结果生成更具同理心的对话回复。
+    </p>
+
+    <div class="tech-stack">
+      <div class="tech-item">
+        <div class="label">前端</div>
+        <div class="value">HTML / CSS / JS</div>
+      </div>
+      <div class="tech-item">
+        <div class="label">后端</div>
+        <div class="value">Spring Boot 3</div>
+      </div>
+      <div class="tech-item">
+        <div class="label">AI Agent</div>
+        <div class="value">FastAPI + Qwen LLM</div>
+      </div>
+      <div class="tech-item">
+        <div class="label">数据库</div>
+        <div class="value">SQLite</div>
+      </div>
+      <div class="tech-item">
+        <div class="label">部署</div>
+        <div class="value">Nginx + Actions CI/CD</div>
+      </div>
+      <div class="tech-item">
+        <div class="label">认证</div>
+        <div class="value">JWT + SHA-256</div>
+      </div>
+    </div>
+
+    <a class="overview-link" href="http://123.60.211.58/" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      在线演示
+    </a>
+  </div>
+
+  <!-- Right: Galaxy -->
+  <div class="galaxy-area" id="galaxyArea">
+    <div class="orbit-ring r1"></div>
+    <div class="orbit-ring r2"></div>
+    <div class="orbit-ring r3"></div>
+    <div id="homeStars"></div>
+
+    <!-- Center Logo → server link -->
+    <a class="center-hub" href="http://123.60.211.58/" target="_blank" id="centerHub">
+      <img src="../docs/logo.png" alt="Emotion"
+        onerror="this.parentElement.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8899e,#f2a0b3);color:white;font-weight:800;font-size:28px&quot;>E</div>'">
+    </a>
+    <div class="center-text">
+      <h2>点击星球探索</h2>
+      <p>点击中央 Logo 访问线上系统</p>
+    </div>
+
+    <!-- 5 Planets -->
+    <div class="home-planet" data-id="agent" onclick="openDetail('agent')">
+      <div class="p-body">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg>
+      </div>
+      <div class="p-label"><div class="name">Agent 流水线</div><div class="sub">6 个 AI Agent 协作</div></div>
+    </div>
+
+    <div class="home-planet" data-id="backend" onclick="openDetail('backend')">
+      <div class="p-body">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg>
+      </div>
+      <div class="p-label"><div class="name">后端设计</div><div class="sub">Spring Boot + SQLite</div></div>
+    </div>
+
+    <div class="home-planet" data-id="frontend" onclick="openDetail('frontend')">
+      <div class="p-body">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="7" cy="6" r="1" fill="currentColor"/><circle cx="10" cy="6" r="1" fill="currentColor"/></svg>
+      </div>
+      <div class="p-label"><div class="name">前端设计</div><div class="sub">原生 HTML/CSS/JS</div></div>
+    </div>
+
+    <div class="home-planet" data-id="cicd" onclick="openDetail('cicd')">
+      <div class="p-body">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </div>
+      <div class="p-label"><div class="name">CI/CD 部署</div><div class="sub">GitHub Actions + Nginx</div></div>
+    </div>
+
+    <div class="home-planet" data-id="test" onclick="openDetail('test')">
+      <div class="p-body">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6v7l4 8H5l4-8V3z"/><line x1="9" y1="3" x2="15" y2="3"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>
+      </div>
+      <div class="p-label"><div class="name">测试</div><div class="sub">单元 / 接口 / 压力</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ DETAIL VIEW ═══════════════ -->
+<div class="detail-view" id="detailView">
+  <div class="detail-left" id="detailLeft"></div>
+  <div class="detail-right" id="detailRight">
+    <div class="orbit-ring r1"></div>
+    <div class="orbit-ring r2"></div>
+    <div id="detailStars"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ CONTENT PANEL ═══════════════ -->
+<div class="content-panel" id="contentPanel"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════
+
+const SECTIONS = {
+  agent: {
+    color: 'var(--accent)',
+    colorHex: '#1a8a7e',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg>`,
+    title: 'Agent 流水线设计',
+    desc: '6 个 AI Agent 协作的情绪分析流水线',
+    items: [
+      { id: 'pipeline',   name: '整体架构',     desc: '流水线全貌', letter: 'A' },
+      { id: 'router',     name: 'Router',       desc: '文本分流',   letter: 'R' },
+      { id: 'emotion',    name: 'Emotion',      desc: '表层情绪',   letter: 'E' },
+      { id: 'sarcasm',    name: 'Sarcasm',      desc: '讽刺检测',   letter: 'S' },
+      { id: 'mix',        name: 'Mix',          desc: '混合情绪',   letter: 'M' },
+      { id: 'judge',      name: 'Judge',        desc: '最终仲裁',   letter: 'J' },
+      { id: 'chat',       name: 'Chat',         desc: '对话回复',   letter: 'C' },
+      { id: 'fallback',   name: 'Fallback',     desc: '降级机制',   letter: 'F' },
+      { id: 'benchmark',  name: 'Benchmark',    desc: '对比分析',   letter: 'B' },
+    ]
+  },
+  backend: {
+    color: 'var(--coral)',
+    colorHex: '#d4573e',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg>`,
+    title: '后端设计',
+    desc: 'Spring Boot 3 + SQLite + JWT',
+    items: [
+      { id: 'db',       name: '数据库与接口', desc: '5 张表 + REST API',   letter: 'D' },
+      { id: 'auth',     name: '认证与权限',   desc: 'SHA-256 + JWT + 角色', letter: 'A' },
+      { id: 'profile',  name: '用户画像',     desc: 'LLM 生成 + 缓存', letter: 'U' },
+    ]
+  },
+  frontend: {
+    color: 'var(--violet)',
+    colorHex: '#6248a0',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="3" y1="9" x2="21" y2="9"/><circle cx="7" cy="6" r="1" fill="currentColor"/><circle cx="10" cy="6" r="1" fill="currentColor"/></svg>`,
+    title: '前端设计',
+    desc: '原生 HTML/CSS/JS，零依赖',
+    items: [
+      { id: 'structure',  name: '技术选型与结构',   desc: '零框架零构建',    letter: 'S' },
+      { id: 'logo',       name: '品牌 Logo',       desc: '视觉识别',    letter: 'L' },
+      { id: 'layout',     name: '前端布局',         desc: '页面结构与功能', letter: 'B' },
+      { id: 'admin',      name: '管理员视图',       desc: '管理功能',    letter: 'A' },
+    ]
+  },
+  cicd: {
+    color: 'var(--blue)',
+    colorHex: '#3d66a8',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+    title: 'CI/CD 部署',
+    desc: 'GitHub Actions + rsync + Nginx',
+    items: [
+      { id: 'cicd-flow', name: 'CI/CD 全流程', desc: '从代码提交到上线', letter: 'F' },
+      { id: 'nginx',     name: 'Nginx 配置',   desc: '反向代理 + 静态文件', letter: 'N' },
+    ]
+  },
+  test: {
+    color: 'var(--yellow)',
+    colorHex: '#c89520',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6v7l4 8H5l4-8V3z"/><line x1="9" y1="3" x2="15" y2="3"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>`,
+    title: '测试',
+    desc: '单元 / 接口 / 压力测试全覆盖',
+    items: [
+      { id: 'func',     name: '功能测试',   desc: '认证 / 分析 / 聊天 / 画像',    letter: 'F' },
+      { id: 'perf',     name: '性能与压力', desc: '响应时间 + 并发场景',    letter: 'P' },
+    ]
+  }
+};
+
+// Content for each sub-item
+const CONTENT = {
+  // ── Agent ──
+  'pipeline': `
+    <div class="cp-section">
+      <h3>整体架构</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">6 个 Agent 协作：Router 分流 → Emotion 必调 → Sarcasm/Mix 条件调用 → Judge 仲裁 → Chat 回复</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">流水线流程 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">用户输入文本</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node primary">Router Agent<br><span style="font-size:11px;font-weight:400">判断文本类型（direct / sarcasm_suspected / mix）</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">Emotion Agent（必调）<br><span style="font-size:11px;font-weight:400">表层情绪分析</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-branch">
+                <div class="flow-branch-item">
+                  <div class="flow-label">sarcasm</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node secondary" style="font-size:12px">Sarcasm Agent<br><span style="font-size:10px;font-weight:400">讽刺检测</span></div>
+                </div>
+                <div class="flow-branch-item">
+                  <div class="flow-label">mix</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node secondary" style="font-size:12px">Mix Agent<br><span style="font-size:10px;font-weight:400">混合情绪</span></div>
+                </div>
+              </div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node highlight">Judge Agent<br><span style="font-size:11px;font-weight:400">规则判定 + LLM 兜底仲裁</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node primary">Chat Agent<br><span style="font-size:11px;font-weight:400">基于情绪分析生成回复</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">部署模型 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div><strong>分析 Agent</strong>（Router / Emotion / Sarcasm / Mix / Judge）→ <code>qwen-flash</code>（快速低成本，每次分析约 1-3s）</div>
+            <div><strong>对话 Agent</strong>（Chat）→ <code>qwen-plus</code>（质量更高，回复更自然，约 3-6s）</div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'router': `
+    <div class="cp-section">
+      <h3>Router Agent — 文本分流</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">判断用户输入属于哪种类型，决定后续调用哪些 Agent。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">分流规则 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>分类</th><th>条件</th><th>调用 Sarcasm</th><th>调用 Mix</th></tr>
+            <tr><td><code>direct</code></td><td>情绪直接表达，无对比/转折结构</td><td>否</td><td>否</td></tr>
+            <tr><td><code>sarcasm_suspected</code></td><td>正面词汇 + 负面语境；触发词："又"、"还真是"、"真棒"</td><td>是</td><td>否</td></tr>
+            <tr><td><code>mix</code></td><td>转折词（但/但是/不过/然而）；双向情绪；模糊低能量表达</td><td>否</td><td>是</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">提示词详解 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>system prompt 要求 LLM 扮演文本分流专家，分析用户输入是否存在以下特征：</div>
+            <div>① <strong>讽刺信号</strong>——正面词汇+负面语境、夸大赞美+抱怨场景、受害者信号（"又来了"、"还真是"、"真棒"）</div>
+            <div>② <strong>混合信号</strong>——转折词（但/但是/不过/然而）、同句双向情绪、模糊低能量表达</div>
+            <div>输出 JSON：<code>route_type</code> + <code>need_sarcasm_check</code> / <code>need_mix_check</code> + <code>reason</code></div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'emotion': `
+    <div class="cp-section">
+      <h3>Emotion Agent — 表层情绪检测</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">对文本进行字面情绪判断，不处理讽刺和复杂混合情绪（由下游 Agent 修正）。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">9 类情绪标签 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>开心、悲伤、愤怒、焦虑、厌烦、中性、疲惫、失落、无奈</div>
+            <div>强度分级：0-30 中性 / 40-65 明显但不强烈 / 66-100 强烈情绪</div>
+            <div>输出字段：emotion + intensity(0-100) + confidence(0-1) + emotion_words + degree_words + negation_words + contrast_words</div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">提示词详解 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>① <strong>情绪标签体系</strong>——9 类，每类附带典型表达示例</div>
+            <div>② <strong>强度分级标准</strong>——0-30 中性、40-65 明显、66-100 强烈</div>
+            <div>③ <strong>输出 JSON</strong>：<code>emotion</code> + <code>intensity</code> + <code>confidence</code> + <code>emotion_words</code> + <code>degree_words</code> + <code>negation_words</code> + <code>contrast_words</code></div>
+            <div>④ <strong>关键约束</strong>：只做字面情绪判断，不处理讽刺和混合情绪</div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'sarcasm': `
+    <div class="cp-section">
+      <h3>Sarcasm Agent — 讽刺检测（条件调用）</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">仅当 Router 判定为 <code>sarcasm_suspected</code> 时调用。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">检测标准 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>① 正面词汇 + 负面事件</div>
+            <div>② 夸大赞美 + 抱怨语境</div>
+            <div>③ 受害者信号（"又来了"、"还真是"）</div>
+            <div>典型负面场景：加班、改需求、被催、深夜会议</div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">Sarcasm vs Mix 对比 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>维度</th><th>Sarcasm Agent</th><th>Mix Agent</th></tr>
+            <tr><td>核心问题</td><td>说话人真的在表达字面意思吗？</td><td>说话人同时有几种情绪？</td></tr>
+            <tr><td>情绪关系</td><td>表面情绪与真实情绪<strong>相反</strong></td><td>多种情绪<strong>同时存在</strong></td></tr>
+            <tr><td>判断逻辑</td><td>识别"言不由衷"——正话反说</td><td>识别"悲喜交加"——复杂共存</td></tr>
+            <tr><td>输出结构</td><td>表层情绪 vs 真实情绪（二元对比）</td><td>主情绪 + 次情绪 + 比例分布</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">提示词详解 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>① <strong>检测维度</strong>——语义反转、情感矛盾、语境不匹配</div>
+            <div>② <strong>关键判断</strong>：字面表达 vs 实际传达是否相反</div>
+            <div>③ <strong>输出 JSON</strong>：<code>is_sarcasm</code> + <code>surface_emotion</code> + <code>true_emotion</code> + <code>revised_intensity</code> + <code>sarcasm_confidence</code></div>
+            <div>④ <strong>典型场景</strong>："太好了又改需求了" → 表面开心，真实厌烦</div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'mix': `
+    <div class="cp-section">
+      <h3>Mix Agent — 混合情绪检测（条件调用）</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">仅当 Router 判定为 <code>mix</code> 时调用。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">检测信号 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>① 转折结构："但"、"但是"、"不过"、"然而"</div>
+            <div>② 模糊低能量表达："提不起劲"、"还好但空"</div>
+            <div>③ 同句双向情绪："轻松但空"、"开心但累"</div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">典型场景对比 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>场景</th><th>Agent</th><th>分析结果</th></tr>
+            <tr><td>"太好了，又改需求了"</td><td>Sarcasm</td><td>表面开心 → 真实厌烦</td></tr>
+            <tr><td>"项目上线了，但好累"</td><td>Mix</td><td>开心(45%) + 疲惫(55%)</td></tr>
+            <tr><td>"还真是有意思啊"</td><td>Sarcasm</td><td>表面中性 → 真实无奈</td></tr>
+            <tr><td>"有点开心又有点焦虑"</td><td>Mix</td><td>开心(50%) + 焦虑(50%)</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">提示词详解 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>① <strong>检测维度</strong>——转折结构、同句双向情绪、模糊低能量表达</div>
+            <div>② <strong>关键判断</strong>：是否同时体验两种以上情绪（共存非反转）</div>
+            <div>③ <strong>输出 JSON</strong>：<code>is_mixed</code> + <code>primary_emotion</code> + <code>secondary_emotion</code> + <code>emotion_ratio</code> + <code>adjusted_intensity</code> + <code>mixed_confidence</code></div>
+            <div>④ <strong>典型场景</strong>："项目上线了但好累" → 开心(45%)+疲惫(55%)</div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'judge': `
+    <div class="cp-section">
+      <h3>Judge Agent — 最终仲裁</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7"><strong>规则优先 + LLM 兜底</strong>的混合策略。rule_result 是快速预判，LLM 在不确定时介入。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">仲裁流程 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>① 接收所有上游 Agent 结果</div>
+            <div>② <strong>Step 1 · 规则判定</strong>（始终执行）——根据路由类型分流</div>
+            <div>③ <strong>Step 2 · 检查置信度阈值</strong>——判断是否需要 LLM 复核</div>
+            <div>④ 不需要 LLM → 直接返回规则结果</div>
+            <div>⑤ 需要 LLM → 调用 LLM 辅助仲裁</div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">提示词详解 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>① <strong>规则引擎</strong>——direct 直接采纳 Emotion 结果；sarcasm 进入反讽分支（置信度 ≥ 0.65 时采用 revised_emotion，加权 emotion×0.3 + sarcasm×0.7）；mix 同理</div>
+            <div>② <strong>LLM 复核触发条件</strong>——sarcasm/mix_confidence < 0.65；emotion_confidence < 0.65；两 agent 置信度差 < 0.15</div>
+            <div>③ <strong>LLM 输出</strong>：<code>final_emotion</code> / <code>final_intensity</code> / <code>final_confidence</code> / <code>secondary_emotion</code> / <code>is_sarcasm</code> / <code>is_mixed</code></div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">置信度 vs 强度处理 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>场景</th><th>置信度</th><th>强度</th></tr>
+            <tr><td>直接路由</td><td>不变</td><td>不变</td></tr>
+            <tr><td>确认 + 高置信度</td><td>加权合并 <code>emotion×0.3 + agent×0.7</code></td><td>采用修正值</td></tr>
+            <tr><td>确认 + 低置信度</td><td>降低 20% <code>emotion×0.8</code></td><td>不变</td></tr>
+            <tr><td>未检测到</td><td>降低 10% <code>emotion×0.9</code></td><td>不变</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>`,
+
+  'chat': `
+    <div class="cp-section">
+      <h3>Chat Agent — 对话回复生成</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">基于情绪分析结果和对话历史，生成温和、尊重、具体的聊天回复。<strong>最后调用</strong>，在 Judge Agent 之后。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">输入 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">当前用户消息 + Judge 结果（final_emotion / intensity / is_sarcasm / is_mixed）+ 最近 20 条历史（仅 user/assistant 角色）</div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">回复原则 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">优先理解最近 3 轮历史上下文；建议轻量、具体、可执行；普通场景 2-5 句话；根据情绪调整语气（悲伤→温柔，焦虑→安抚，开心→共情）</div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--yellow);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">安全机制 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">检测自伤/自杀倾向关键词 → risk_hint 设为 possible_crisis → 前端弹出危机干预提示 + 心理援助热线</div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">输出字段 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">reply（回复文本）+ tone（回复语气）+ risk_hint（风险标记）+ suggested_actions（建议操作列表）+ reason（回复理由）</div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--muted);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">提示词详解 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div><code>temperature=0.4</code>（较高随机性，回复更多样）</div>
+            <div>① <strong>输入上下文</strong>——当前消息 + Judge 结果 + 最近 20 条历史（按时间正序）</div>
+            <div>② <strong>语气匹配</strong>——悲伤→gentle、焦虑→empathetic、愤怒→supportive、开心→encouraging、中性→neutral</div>
+            <div>③ <strong>安全机制</strong>——检测自伤/自杀关键词 → risk_hint=possible_crisis → tone=crisis_support</div>
+            <div>④ <strong>输出</strong>：<code>reply</code> + <code>tone</code> + <code>risk_hint</code> + <code>suggested_actions</code> + <code>reason</code></div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'fallback': `
+    <div class="cp-section">
+      <h3>Fallback 降级机制</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">每个 Agent 都实现了 fallback 降级机制，确保在 LLM 调用失败或异常时系统仍能运行。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">降级触发条件 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div>① 网络异常：LLM API 调用超时或网络不可达</div>
+            <div>② 认证失败：API Key 缺失或无效</div>
+            <div>③ 格式异常：LLM 返回非 JSON 或字段缺失</div>
+            <div>④ 服务不可用：大模型服务暂时宕机</div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">各 Agent 降级行为 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>Agent</th><th>降级行为</th></tr>
+            <tr><td>Router</td><td>默认返回 <code>direct</code>，跳过后续条件 Agent</td></tr>
+            <tr><td>Emotion</td><td>返回保守的中性情绪（confidence: 0.5）</td></tr>
+            <tr><td>Sarcasm</td><td>默认不检测到讽刺（is_sarcasm: false）</td></tr>
+            <tr><td>Mix</td><td>默认不检测到混合情绪（is_mixed: false）</td></tr>
+            <tr><td>Judge</td><td>直接使用 Emotion Agent 结果（纯规则模式）</td></tr>
+            <tr><td>Chat</td><td>返回通用安抚回复</td></tr>
+            <tr><td>Profile</td><td>返回空画像（profile: ""）</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">设计原则 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">每个 Agent 的 fallback 都返回"安全默认值"——不报错、不崩溃、给出最保守的合理输出，保证流水线始终能产出结果。Judge 的 fallback 有双层兜底：先尝试纯规则裁决，规则也失败才用 Emotion Agent 结果。</div>
+      </div>
+    </div>`,
+
+  'benchmark': `
+    <div class="cp-section">
+      <h3>Benchmark 对比</h3>
+      <p style="margin-bottom:20px;color:var(--ink2);line-height:1.7">GPT-5.5 直接模型 vs Agent 流水线，15 条样本（direct/mix/sarcasm 各 5 条），准确率均为 100%。</p>
+      <div class="bench-layout">
+        <div class="bench-img">
+          <img src="benchmark_comparison.svg" alt="Benchmark Comparison">
+        </div>
+        <div class="bench-why">
+          <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+            <div class="item-title">讽刺场景：强度 79.6 > 73.6 <span class="arrow-icon">▶</span></div>
+            <div class="item-detail">多 Agent 协作更准确识别讽刺背后的真实情绪。Sarcasm Agent 专门捕捉"言不由衷"的语义反转，将表面情绪修正为真实情绪，强度评分比直接模型高出 8.2%。</div>
+          </div>
+          <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+            <div class="item-title">混合情绪：强度 60.2 > 58.4 <span class="arrow-icon">▶</span></div>
+            <div class="item-detail">Mix Agent 精确拆分主次情绪比例，直接模型只能给出模糊的综合判断。例如"项目上线了但好累"，Agent 流水线能拆分为开心(45%)+疲惫(55%)，而直接模型仅输出一个笼统的情绪标签。</div>
+          </div>
+          <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+            <div class="item-title">置信度更低但更合理 <span class="arrow-icon">▶</span></div>
+            <div class="item-detail">多 Agent 仲裁在不确定时主动降低置信度，不过度自信。Judge Agent 的规则引擎在两个 Agent 置信度差距 < 0.15 时触发 LLM 复核，宁可说"我不确定"也不给错误的高置信度——这在医疗/心理场景中至关重要。</div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  // ── Backend ──
+  'db': `
+    <div class="cp-section">
+      <h3>数据库设计</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">SQLite + JPA/Hibernate 自动建表，5 张表。</p>
+
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">users — 用户表 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td>id</td><td>UUID</td><td>主键，注册时自动分配</td></tr>
+            <tr><td>username</td><td>String</td><td>用户名，唯一索引</td></tr>
+            <tr><td>password_hash</td><td>String</td><td>SHA-256(salt + password)</td></tr>
+            <tr><td>salt</td><td>String</td><td>随机盐值</td></tr>
+            <tr><td>role</td><td>String</td><td>"user" 或 "admin"</td></tr>
+            <tr><td>created_at</td><td>Instant</td><td>注册时间</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--coral)" onclick="toggleItem(this)">
+        <div class="item-title">conversations — 对话表 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td>id</td><td>UUID</td><td>对话 ID</td></tr>
+            <tr><td>user_id</td><td>UUID → users</td><td>所属用户</td></tr>
+            <tr><td>title</td><td>String</td><td>取用户首条消息前 15 字</td></tr>
+            <tr><td>created_at</td><td>Instant</td><td>创建时间</td></tr>
+            <tr><td>updated_at</td><td>Instant</td><td>最后活跃时间</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--violet)" onclick="toggleItem(this)">
+        <div class="item-title">chat_messages — 消息表 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td>id</td><td>UUID</td><td>消息 ID</td></tr>
+            <tr><td>conversation_id</td><td>UUID → conversations</td><td>所属对话</td></tr>
+            <tr><td>role</td><td>String</td><td>"user" 或 "assistant"</td></tr>
+            <tr><td>content</td><td>Text</td><td>消息内容</td></tr>
+            <tr><td>created_at</td><td>Instant</td><td>发送时间</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--yellow)" onclick="toggleItem(this)">
+        <div class="item-title">emotion_records — 情绪记录表 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td>id</td><td>UUID</td><td>记录 ID</td></tr>
+            <tr><td>conversation_id</td><td>UUID → conversations</td><td>所属对话</td></tr>
+            <tr><td>message_id</td><td>UUID → chat_messages</td><td>对应用户消息</td></tr>
+            <tr><td>final_emotion</td><td>String</td><td>Judge 裁决后的最终情绪</td></tr>
+            <tr><td>secondary_emotion</td><td>String</td><td>次要情绪（混合场景）</td></tr>
+            <tr><td>final_intensity</td><td>Integer</td><td>情绪强度 0-100</td></tr>
+            <tr><td>final_confidence</td><td>Double</td><td>置信度 0-1</td></tr>
+            <tr><td>is_sarcasm</td><td>Boolean</td><td>是否讽刺</td></tr>
+            <tr><td>is_mixed</td><td>Boolean</td><td>是否混合情绪</td></tr>
+            <tr><td>raw_analysis_json</td><td>Text</td><td>完整分析结果 JSON</td></tr>
+            <tr><td>created_at</td><td>Instant</td><td>分析时间</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--muted)" onclick="toggleItem(this)">
+        <div class="item-title">user_profiles — 用户画像表 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+            <tr><td>id</td><td>UUID</td><td>画像 ID</td></tr>
+            <tr><td>user_id</td><td>UUID → users</td><td>所属用户</td></tr>
+            <tr><td>profile_data</td><td>Text</td><td>LLM 生成的画像 JSON</td></tr>
+            <tr><td>record_count</td><td>Integer</td><td>生成时的情绪记录数</td></tr>
+            <tr><td>created_at</td><td>Instant</td><td>首次生成时间</td></tr>
+            <tr><td>updated_at</td><td>Instant</td><td>最后更新时间</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="cp-section">
+      <h3>接口总览</h3>
+      <p style="margin-bottom:12px;color:var(--ink2);line-height:1.7">认证接口无需 JWT，业务接口需 Bearer Token。</p>
+
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">认证接口（无需 JWT）<span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>方法</th><th>路径</th><th>说明</th></tr>
+            <tr><td>GET</td><td>/api/auth/captcha</td><td>返回图片验证码 + captchaKey（5分钟有效）</td></tr>
+            <tr><td>POST</td><td>/api/auth/register</td><td>注册新用户，需 captchaCode + captchaKey</td></tr>
+            <tr><td>POST</td><td>/api/auth/login</td><td>登录获取 JWT Token（24小时有效）</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--coral)" onclick="toggleItem(this)">
+        <div class="item-title">业务接口（需要 JWT）<span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>方法</th><th>路径</th><th>说明</th></tr>
+            <tr><td>POST</td><td>/api/emotion/analyze</td><td>情绪分析（纯分析，不保存）</td></tr>
+            <tr><td>POST</td><td>/api/emotion/chat</td><td>情绪分析 + AI 回复 + 持久化</td></tr>
+            <tr><td>GET</td><td>/api/emotion/conversations</td><td>获取对话列表（admin 看所有）</td></tr>
+            <tr><td>GET</td><td>/api/emotion/messages</td><td>获取对话内消息列表</td></tr>
+            <tr><td>GET</td><td>/api/emotion/profile</td><td>获取情绪统计数据</td></tr>
+            <tr><td>POST</td><td>/api/emotion/profile/generate</td><td>生成用户画像（仅 admin）</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>`,
+
+  'auth': `
+    <div class="cp-section">
+      <h3>认证与权限</h3>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">认证流程 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">用户注册</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">SHA-256(salt + password) → 存入 users 表</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-branch" style="gap:24px">
+                <div class="flow-branch-item">
+                  <div class="flow-label">登录</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node primary" style="font-size:13px">JWT Token<br><span style="font-size:11px;font-weight:400">5min / 7天（自动登录）</span></div>
+                </div>
+                <div class="flow-branch-item">
+                  <div class="flow-label">管理员</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node highlight" style="font-size:13px">application.yml 预设<br><span style="font-size:11px;font-weight:400">启动自动创建，注册只能 user</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">权限矩阵 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>接口</th><th>user</th><th>admin</th></tr>
+            <tr><td>/api/emotion/chat</td><td>仅自己</td><td>仅自己</td></tr>
+            <tr><td>/api/emotion/conversations</td><td>仅自己</td><td>所有人</td></tr>
+            <tr><td>/api/emotion/profile</td><td>仅自己</td><td>所有人</td></tr>
+            <tr><td>/api/emotion/profile/generate</td><td>403 禁止</td><td>所有人</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>`,
+
+  'profile': `
+    <div class="cp-section">
+      <h3>用户画像系统</h3>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">生成流程 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">emotion_records 情绪记录</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">特征提取（纯 Python 统计）<br><span style="font-size:11px;font-weight:400">情绪分布 · 强度趋势 · 活跃时段</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node primary">LLM 画像生成<br><span style="font-size:11px;font-weight:400">性格特征 · 沟通风格 · MBTI · 摘要</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">缓存策略 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">用户请求画像</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-branch">
+                <div class="flow-branch-item">
+                  <div class="flow-label">无缓存</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node highlight" style="font-size:12px">LLM 生成</div>
+                </div>
+                <div class="flow-branch-item">
+                  <div class="flow-label">有缓存</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-branch" style="gap:8px">
+                    <div class="flow-branch-item">
+                      <div class="flow-label">≥10 条</div>
+                      <div class="flow-arrow"></div>
+                      <div class="flow-node secondary" style="font-size:11px">重新生成</div>
+                    </div>
+                    <div class="flow-branch-item">
+                      <div class="flow-label">&lt;10 条</div>
+                      <div class="flow-arrow"></div>
+                      <div class="flow-node secondary" style="font-size:11px">返回缓存</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">画像输出字段 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div><code>personality_traits</code> — 2-4 个核心性格特征（如"内向敏感"、"追求完美"）</div>
+            <div><code>communication_style</code> — 对话中的沟通倾向（如"偏好简洁回应"）</div>
+            <div><code>emotional_patterns</code> — 情绪变化规律和触发因素</div>
+            <div><code>mbti</code> — 根据对话判断的 MBTI 类型</div>
+            <div><code>summary</code> — 整体画像总结（记录 < 10 条时标注"数据量不足，仅供参考"）</div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  // ── Frontend ──
+  'structure': `
+    <div class="cp-section">
+      <h3>技术选型与文件结构</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">原生 HTML/CSS/JS，无框架、无构建工具、无 npm 依赖。Nginx 直接作为静态文件服务，双击 index.html 即可本地预览。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">技术架构 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">index.html 入口（SPA 单页）</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">partials.js — 动态加载 auth.html + workspace.html 片段</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node primary">app.js — 全部业务逻辑（~1300 行）</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">styles.css — @import 8 个 CSS 模块（tokens / auth / workspace / chat / profile / admin / charts / responsive）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">技术选型详情 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>维度</th><th>选择</th><th>原因</th></tr>
+            <tr><td>框架</td><td>无框架，原生 JS</td><td>零依赖，部署简单，Nginx 直出</td></tr>
+            <tr><td>构建工具</td><td>无（无 Webpack/Vite）</td><td>无需 npm install，直接编辑即生效</td></tr>
+            <tr><td>CSS 方案</td><td>原生 CSS + CSS Variables</td><td>tokens.css 统一管理设计变量（颜色/间距/阴影）</td></tr>
+            <tr><td>路由</td><td>JS 手动切换 DOM 显示/隐藏</td><td>SPA 无需路由库，auth / workspace / profile 三视图切换</td></tr>
+            <tr><td>状态管理</td><td>全局 state 对象 + localStorage</td><td>认证状态（token/userId/role）跨页面持久化</td></tr>
+            <tr><td>图表</td><td>ECharts（CDN 引入）</td><td>情绪趋势折线图 + 情绪分布雷达图 + 强度直方图</td></tr>
+            <tr><td>HTTP 请求</td><td>原生 fetch API</td><td>封装 api() 函数统一处理 JWT Header + 错误码</td></tr>
+            <tr><td>动态加载</td><td>partials.js fetch HTML 片段</td><td>auth.html（登录/注册）和 workspace.html（聊天/画像）按需加载</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">文件结构 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="font-family:monospace;font-size:13px;background:var(--bg);padding:14px;border-radius:8px;box-shadow:var(--neo-inset);line-height:1.8">
+            frontend/<br>
+            ├── index.html &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 入口，加载 partials + scripts<br>
+            ├── app.js &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 全部业务逻辑（~1300 行）<br>
+            ├── partials.js &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 动态加载 HTML 片段<br>
+            ├── styles.css &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# @import 8 个模块<br>
+            ├── partials/<br>
+            │ &nbsp;&nbsp;├── auth.html &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 登录/注册/验证码界面<br>
+            │ &nbsp;&nbsp;└── workspace.html &nbsp;&nbsp;&nbsp;# 聊天/画像/管理主界面<br>
+            └── styles/<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── tokens.css &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 设计变量（颜色/间距/阴影）<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── auth.css<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── workspace.css<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── chat.css<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── profile.css<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── admin.css<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├── charts.css<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;└── responsive.css
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'logo': `
+    <div class="cp-section">
+      <h3>品牌 Logo 设计</h3>
+      <div class="logo-display">
+        <img src="../docs/logo.png" alt="Emotion Logo"
+          onerror="this.style.background='linear-gradient(135deg,#e8899e,#f2a0b3)';this.alt='Logo'">
+        <div class="logo-info">
+          <h4>Emotion — 情绪感知 AI</h4>
+          <p>可爱卡通风格的拟人化角色，圆润造型、面带微笑、举起一只手打招呼，搭配粉色腮红。传递温暖、友善、治愈的情感基调，与情绪感知 AI 对话的产品定位高度契合。纯矢量 SVG 格式，支持无损缩放。</p>
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="click-item" style="border-left:3px solid var(--violet)" onclick="toggleItem(this)">
+          <div class="item-title">管理员头像 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <div class="logo-display" style="margin-top:8px">
+              <img src="../frontend/image/admin_avatar.png" alt="管理员头像"
+                onerror="this.style.background='linear-gradient(135deg,#8b6dd8,#6248a0)';this.alt='Admin'">
+              <div class="logo-info">
+                <h4>admin_avatar.png</h4>
+                <p>管理员专属头像，佩戴领带的卡通角色，传递专业、可信赖的管理身份。用于管理员面板的用户列表、侧边栏用户信息展示。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="click-item" style="border-left:3px solid var(--pink);margin-top:10px" onclick="toggleItem(this)">
+          <div class="item-title">普通用户头像 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <div class="logo-display" style="margin-top:8px">
+              <img src="../frontend/image/user_avatar.png" alt="普通用户头像"
+                onerror="this.style.background='linear-gradient(135deg,#f0a0b4,#e8899e)';this.alt='User'">
+              <div class="logo-info">
+                <h4>user_avatar.png</h4>
+                <p>普通用户头像，活泼可爱的卡通角色，传递轻松、友好的使用氛围。用于普通用户的侧边栏信息展示和聊天界面。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="click-item" style="border-left:3px solid var(--pink);margin-top:10px" onclick="toggleItem(this)">
+          <div class="item-title">Logo 应用场景 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+              <div>左上角品牌区：52px 圆形头像 + "Emotion" 标题 + "情绪感知 AI 对话系统" 副标题</div>
+              <div>聊天头像：AI 回复时显示 Logo 作为 assistant 头像，用户消息显示用户首字母</div>
+              <div>登录页：居中 Logo + 系统名称，传递产品调性</div>
+              <div>管理员面板：用户列表中每个用户的头像默认使用对应角色头像（admin 用 admin_avatar，user 用 user_avatar）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'layout': `
+    <div class="cp-section">
+      <h3>前端布局与功能</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">三视图切换：登录认证 → 聊天工作台 → 情绪画像。以下为聊天工作台实际界面。</p>
+      <div class="screenshot-frame">
+        <div class="screenshot-bar">
+          <div class="screenshot-dot"></div>
+          <div class="screenshot-dot"></div>
+          <div class="screenshot-dot"></div>
+          <span style="font-size:12px;color:var(--muted);margin-left:8px">Emotion — 情绪趋势</span>
+        </div>
+        <img src="../mind_map/前端.jpg" alt="前端布局截图"
+          onerror="this.parentElement.innerHTML='<div style=&quot;padding:60px;text-align:center;color:var(--muted)&quot;>截图待补充</div>'">
+      </div>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+        <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+          <div class="item-title">左侧栏 — 会话管理 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+              <div>顶部：Logo + 系统名称 "Emotion" + "情绪感知 AI 对话系统"</div>
+              <div>"+ 新会话" 按钮：点击创建新对话，自动清空聊天区</div>
+              <div>历史会话列表：按更新时间倒序排列，显示标题（首条消息前 15 字）+ 时间戳</div>
+              <div>底部：当前用户信息（头像 + 用户名 + 角色）+ 退出按钮</div>
+            </div>
+          </div>
+        </div>
+        <div class="click-item" style="border-left:3px solid var(--coral)" onclick="toggleItem(this)">
+          <div class="item-title">右侧主区 — 情绪趋势面板 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+              <div>顶部导航：返回箭头 + "历史情绪变化" 面包屑 + "情绪趋势" 标题 + 刷新按钮</div>
+              <div>统计卡片（4 列）：记录数（115）、主导情绪（厌烦）、平均强度（71.1）、平均置信度（85%）</div>
+              <div>组合图表：柱状图（单次强度）+ 折线图（强度走势），X 轴为日期，Y 轴为 0-100 强度值</div>
+              <div>每个数据点标注情绪标签（开心/厌烦/疲惫/中性），可横向滚动查看更多记录</div>
+            </div>
+          </div>
+        </div>
+        <div class="click-item" style="border-left:3px solid var(--violet)" onclick="toggleItem(this)">
+          <div class="item-title">聊天界面功能 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+              <div>消息气泡：用户消息靠右（蓝色背景），AI 回复靠左（白色背景 + Logo 头像）</div>
+              <div>实时情绪洞察：每条 AI 回复下方显示情绪标签 + 强度条 + 置信度</div>
+              <div>FaceRating 组件：拖动表情滑块表达满意度，收集用户反馈</div>
+              <div>输入框：支持 Enter 发送，Shift+Enter 换行，空消息禁用发送按钮</div>
+              <div>打字指示器：AI 生成回复时显示 "正在思考..." 动画</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'admin': `
+    <div class="cp-section">
+      <h3>管理员视图</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">admin 角色登录后，左侧栏底部显示"管理员"标签，可访问额外管理功能。以下为管理员专属界面。</p>
+      <div class="screenshot-frame">
+        <div class="screenshot-bar">
+          <div class="screenshot-dot"></div>
+          <div class="screenshot-dot"></div>
+          <div class="screenshot-dot"></div>
+          <span style="font-size:12px;color:var(--muted);margin-left:8px">Emotion — 管理员用户画像</span>
+        </div>
+        <img src="../mind_map/管理员.jpg" alt="管理员视图截图"
+          onerror="this.parentElement.innerHTML='<div style=&quot;padding:60px;text-align:center;color:var(--muted)&quot;>截图待补充</div>'">
+      </div>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+        <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+          <div class="item-title">用户管理面板 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+              <div>用户列表：显示所有注册用户（用户名 + 角色 + 注册时间）</div>
+              <div>点击查看任意用户的情绪分析记录和对话历史</div>
+              <div>支持切换目标用户（targetUser），查看该用户的情绪趋势和画像</div>
+              <div>权限控制：admin 可查看所有用户的 conversations、messages、emotion_records</div>
+            </div>
+          </div>
+        </div>
+        <div class="click-item" style="border-left:3px solid var(--coral)" onclick="toggleItem(this)">
+          <div class="item-title">用户画像查看 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+              <div>查看任意用户的情绪画像：性格特征、沟通风格、情绪规律、MBTI 类型</div>
+              <div>画像数据来源：情绪分布统计 + 强度趋势 + 活跃时段 + LLM 生成摘要</div>
+              <div>强制重新生成：admin 可调用 /profile/generate?force=true 跳过缓存</div>
+              <div>user 角色无权访问 /profile/generate 接口（返回 403）</div>
+            </div>
+          </div>
+        </div>
+        <div class="click-item" style="border-left:3px solid var(--yellow)" onclick="toggleItem(this)">
+          <div class="item-title">user vs admin 功能对比 <span class="arrow-icon">▶</span></div>
+          <div class="item-detail">
+            <table class="detail-table">
+              <tr><th>功能</th><th>user</th><th>admin</th></tr>
+              <tr><td>聊天对话</td><td>仅自己的会话</td><td>仅自己的会话</td></tr>
+              <tr><td>情绪分析</td><td>分析 + 保存记录</td><td>分析 + 保存记录</td></tr>
+              <tr><td>查看会话列表</td><td>仅自己</td><td>所有用户</td></tr>
+              <tr><td>查看消息历史</td><td>仅自己的对话</td><td>所有用户的对话</td></tr>
+              <tr><td>情绪统计数据</td><td>仅自己</td><td>所有用户</td></tr>
+              <tr><td>生成用户画像</td><td>403 禁止</td><td>所有用户 + 强制刷新</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  // ── CI/CD ──
+  'cicd-flow': `
+    <div class="cp-section">
+      <h3>CI/CD 全流程</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">推送到 main 或 PR 时自动构建测试，CI 成功后自动部署到华为云服务器。服务器无需访问外网。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">部署流程 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">Git Push / PR → main 分支</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">CI 阶段：Java 17 Maven test + Python 3.10 compileall</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node primary">rsync 同步代码（SSH 隧道）<br><span style="font-size:12px;font-weight:400">排除 .git / .env / *.sqlite3 / node_modules / target / __pycache__</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">SSH 远程执行重启命令</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node highlight">systemctl restart 三个服务<br><span style="font-size:12px;font-weight:400">emotion-agent-python(:8000) · emotion-agent(:8080) · nginx(:80)</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">等待 Spring Boot 启动（≤30s）→ curl 健康验证</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">服务器架构 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node primary">Nginx :80（入口网关）<br><span style="font-size:12px;font-weight:400">静态文件服务 + /api/* 反向代理到 :8080</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">Spring Boot :8080（业务层）<br><span style="font-size:12px;font-weight:400">JWT 鉴权 + REST API + SQLite</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">Python Agent :8000（AI 层）<br><span style="font-size:12px;font-weight:400">FastAPI + Qwen LLM API</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">rsync 部署细节 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="font-family:monospace;font-size:12px;background:var(--bg);padding:12px;border-radius:8px;box-shadow:var(--neo-inset);margin-top:8px;line-height:1.8">
+            rsync -avz --delete \<br>
+            &nbsp;&nbsp;-e "ssh -p $SSH_PORT" \<br>
+            &nbsp;&nbsp;--exclude='.git' \<br>
+            &nbsp;&nbsp;--exclude='.env' \<br>
+            &nbsp;&nbsp;--exclude='*.sqlite3' \<br>
+            &nbsp;&nbsp;--exclude='node_modules' \<br>
+            &nbsp;&nbsp;--exclude='target' \<br>
+            &nbsp;&nbsp;--exclude='__pycache__' \<br>
+            &nbsp;&nbsp;./ $SSH_USER@$SSH_HOST:/opt/emoagent/
+          </div>
+          <p style="margin-top:8px">增量同步：只传输变化的文件，不重传未修改文件。--delete 删除服务器上本地已删除的文件。</p>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--yellow);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">SSH 密钥配置 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+            <div><strong>公钥 → 华为云服务器</strong>：将 <code>id_ed25519.pub</code> 上传到 <code>~/.ssh/authorized_keys</code>，服务器只接受公钥匹配的连接</div>
+            <div><strong>私钥 → GitHub Actions Secrets</strong>：将 <code>id_ed25519</code> 内容存入仓库 Secrets，运行时解密使用，不存入代码</div>
+            <div style="margin-top:4px"><strong>Secrets 配置</strong>：</div>
+            <div style="font-size:13px"><code>SSH_HOST</code> = 123.60.211.58（公网 IP） · <code>SSH_PORT</code> = 22 · <code>SSH_USER</code> = root · <code>SSH_PRIVATE_KEY</code> = 私钥内容</div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+  'nginx': `
+    <div class="cp-section">
+      <h3>Nginx 配置</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">入口网关：静态文件服务 + API 反向代理。服务器唯一的公网入口。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">请求路由 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">用户请求 :80</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">匹配 URI 类型</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-branch">
+                <div class="flow-branch-item">
+                  <div class="flow-label">GET / 静态资源</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node secondary" style="font-size:13px">→ frontend/index.html<br><span style="font-size:11px;font-weight:400">try_files $uri $uri/ /index.html（SPA 回退）</span></div>
+                </div>
+                <div class="flow-branch-item">
+                  <div class="flow-label">POST /api/*</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node primary" style="font-size:13px">→ 127.0.0.1:8080<br><span style="font-size:11px;font-weight:400">proxy_pass http://127.0.0.1:8080（保留 /api 前缀）</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">Nginx 配置文件 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="font-family:monospace;font-size:12px;background:var(--bg);padding:14px;border-radius:8px;box-shadow:var(--neo-inset);margin-top:8px;line-height:1.8;white-space:pre-wrap">server {
+    listen 80;
+    server_name _;
+
+    # 前端静态文件
+    location / {
+        root /opt/emoagent/frontend;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 反向代理 → Spring Boot
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}</div>
+          <p style="margin-top:10px">前端和后端在同一台服务器上，Nginx 作为统一入口。静态文件直接由 Nginx 服务，API 请求转发到 Spring Boot。</p>
+        </div>
+      </div>
+    </div>`,
+
+  // ── Test ──
+  'func': `
+    <div class="cp-section">
+      <h3>功能测试</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">JUnit + Spring Boot Test 后端单元，pytest Agent 单元，curl/Postman 接口联调，全部通过。</p>
+
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">认证测试 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>测试用例</th><th>请求</th><th>期望结果</th><th>实际</th></tr>
+            <tr><td>注册成功</td><td>POST /api/auth/register {username, password, captchaCode, captchaKey}</td><td>200 + JWT Token + userId + role</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>登录成功</td><td>POST /api/auth/login {username, password}</td><td>200 + JWT Token（24h 有效）</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>验证码获取</td><td>GET /api/auth/captcha</td><td>200 + base64 图片 + captchaKey</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>JWT 拦截</td><td>GET /api/emotion/conversations（无 Token）</td><td>401 Unauthorized</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>Token 过期</td><td>GET /api/emotion/conversations（过期 Token）</td><td>401 + 提示重新登录</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>用户名重复</td><td>POST /api/auth/register（已存在用户名）</td><td>409 Conflict</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--coral)" onclick="toggleItem(this)">
+        <div class="item-title">情绪分析 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>测试用例</th><th>输入</th><th>期望结果</th><th>实际</th></tr>
+            <tr><td>直接情绪</td><td>"我很开心"</td><td>emotion: 开心, is_sarcasm: false, intensity > 50</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>讽刺检测</td><td>"太好了又改需求了"</td><td>is_sarcasm: true, true_emotion: 厌烦</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>混合情绪</td><td>"项目上线了但好累"</td><td>is_mixed: true, primary + secondary</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>中性输入</td><td>"今天天气怎么样"</td><td>emotion: 中性, intensity: 20</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>空文本</td><td>""</td><td>返回默认中性结果，不报错</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>焦虑情绪</td><td>"明天就要答辩了好紧张"</td><td>emotion: 焦虑, intensity > 60</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--violet)" onclick="toggleItem(this)">
+        <div class="item-title">聊天对话 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>测试用例</th><th>操作</th><th>期望结果</th><th>实际</th></tr>
+            <tr><td>新建会话</td><td>发送消息（无 conversationId）</td><td>自动创建对话，标题取前 15 字</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>连续对话</td><td>传入已有 conversationId</td><td>消息追加到同一对话</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>历史加载</td><td>打开已有对话</td><td>自动加载最近 20 条消息</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>越权拒绝</td><td>访问他人 conversationId</td><td>403 Forbidden</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>情绪回复</td><td>发送 "我好累"</td><td>AI 回复语气为 gentle/empathetic</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>对话列表</td><td>GET /api/emotion/conversations</td><td>返回该用户所有对话，按更新时间倒序</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--yellow)" onclick="toggleItem(this)">
+        <div class="item-title">用户画像 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>测试用例</th><th>操作</th><th>期望结果</th><th>实际</th></tr>
+            <tr><td>统计数据</td><td>GET /api/emotion/profile</td><td>返回情绪分布、强度趋势、活跃时段</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>画像生成</td><td>POST /api/emotion/profile/generate（admin）</td><td>LLM 生成性格特征、MBTI、摘要</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>缓存命中</td><td>再次调用 /profile/generate</td><td>返回缓存画像，cached: true</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>强制刷新</td><td>/profile/generate?force=true（admin）</td><td>重新调用 LLM 生成，cached: false</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>权限控制</td><td>POST /api/emotion/profile/generate（user）</td><td>403 Forbidden</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>无数据</td><td>新用户调用 /profile</td><td>返回空统计数据，不报错</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>`,
+
+  'perf': `
+    <div class="cp-section">
+      <h3>响应时间测试</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">单次请求响应时间，测试环境：华为云 ECS（2 核 4G），Qwen API 延迟 1-3s。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">接口响应时间 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>接口</th><th>测试方法</th><th>期望</th><th>实际</th><th>状态</th></tr>
+            <tr><td>用户登录</td><td>POST /api/auth/login，10 次取平均</td><td>≤ 100ms</td><td>10-12ms</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>验证码获取</td><td>GET /api/auth/captcha，10 次取平均</td><td>≤ 100ms</td><td>5-8ms</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>情绪分析</td><td>POST /api/emotion/analyze，含 6 Agent 流水线</td><td>≤ 10s</td><td>2-6s</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>聊天回复</td><td>POST /api/emotion/chat，含分析 + 生成 + 持久化</td><td>≤ 15s</td><td>4-8s</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>历史查询</td><td>GET /api/emotion/conversations，100 条对话</td><td>≤ 100ms</td><td>8ms</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>消息列表</td><td>GET /api/emotion/messages?conversation_id=xxx</td><td>≤ 100ms</td><td>12ms</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>画像统计</td><td>GET /api/emotion/profile，200 条记录</td><td>≤ 100ms</td><td>13ms</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+            <tr><td>画像生成</td><td>POST /api/emotion/profile/generate，首次生成</td><td>≤ 30s</td><td>8-15s</td><td style="color:var(--accent);font-weight:600">通过</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="cp-section">
+      <h3>压力测试</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">使用 wrk + curl 并发测试，50 个并发连接，持续 30 秒。</p>
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">压力测试结果 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>测试场景</th><th>并发数</th><th>总请求数</th><th>成功数</th><th>失败数</th><th>失败率</th><th>瓶颈分析</th></tr>
+            <tr><td>并发登录</td><td>50</td><td>500</td><td>500</td><td>0</td><td style="color:var(--accent);font-weight:600">0%</td><td>SQLite 写入无瓶颈</td></tr>
+            <tr><td>并发查询</td><td>50</td><td>500</td><td>500</td><td>0</td><td style="color:var(--accent);font-weight:600">0%</td><td>只读查询，性能充足</td></tr>
+            <tr><td>并发分析</td><td>50</td><td>500</td><td>320</td><td>180</td><td style="color:var(--coral);font-weight:600">36%</td><td>Qwen API 限流（非系统瓶颈）</td></tr>
+            <tr><td>并发聊天</td><td>20</td><td>200</td><td>186</td><td>14</td><td style="color:var(--yellow);font-weight:600">7%</td><td>LLM 超时（≤10s 阈值）</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">压力测试结论 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+            <div><strong>登录/查询</strong>：50 并发 0% 失败，SQLite 单文件数据库在此并发下表现稳定</div>
+            <div><strong>情绪分析</strong>：36% 失败全部来自 Qwen API 限流（HTTP 429），非系统瓶颈。单次分析耗时 2-6s，受 LLM 推理速度限制</div>
+            <div><strong>聊天回复</strong>：7% 失败来自 LLM 超时（≤10s 阈值），20 并发下 LLM 响应变慢</div>
+            <div><strong>优化方向</strong>：① 引入请求队列限流，避免瞬时打爆 LLM API；② 添加响应缓存，相同情绪分析结果复用；③ 升级 LLM API 套餐提升 QPS</div>
+          </div>
+        </div>
+      </div>
+    </div>`
+};
+
+
+// ═══════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════
+
+let currentSection = null;
+let currentItem = null;
+
+function openDetail(sectionId) {
+  currentSection = sectionId;
+  const sec = SECTIONS[sectionId];
+  const detailView = document.getElementById('detailView');
+  const detailLeft = document.getElementById('detailLeft');
+  const detailRight = document.getElementById('detailRight');
+
+  // Build left panel
+  let leftHTML = `
+    <button class="back-btn" onclick="goHome()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      返回
+    </button>
+    <div class="detail-header">
+      <div class="detail-icon" style="background:${sec.color}">${sec.icon}</div>
+      <div>
+        <h2>${sec.title}</h2>
+        <p>${sec.desc}</p>
+      </div>
+    </div>
+    <a class="detail-server-link" href="http://123.60.211.58/" target="_blank">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      在线演示
+    </a>
+  `;
+
+  sec.items.forEach((item, i) => {
+    leftHTML += `
+      <div class="content-card animate-in" style="animation-delay:${i * 0.05}s;border-left:3px solid ${sec.color}" onclick="openContent('${sectionId}','${item.id}')">
+        <h3>${item.name}</h3>
+        <p>${item.desc}</p>
+        <span class="arrow">→</span>
+      </div>
+    `;
+  });
+
+  detailLeft.innerHTML = leftHTML;
+
+  // Build right: orbiting sub-planets
+  let rightHTML = `
+    <div class="detail-center" style="background:${sec.color}">
+      ${sec.icon}
+    </div>
+  `;
+
+  const count = sec.items.length;
+  const radius = count <= 5 ? 180 : 220;
+  // Color palette for sub-planets (cycle through these)
+  const spColors = ['sp-teal', 'sp-coral', 'sp-violet', 'sp-blue', 'sp-yellow', 'sp-pink'];
+  sec.items.forEach((item, i) => {
+    const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    const colorClass = spColors[i % spColors.length];
+    rightHTML += `
+      <div class="sub-planet" style="top:calc(50% + ${y}px - 31px);left:calc(50% + ${x}px - 31px);animation-delay:${-i * 0.7}s" onclick="openContent('${sectionId}','${item.id}')">
+        <div class="sp-body ${colorClass}">${item.letter}</div>
+        <div class="sp-label"><div class="name">${item.name}</div><div class="desc">${item.desc}</div></div>
+      </div>
+    `;
+  });
+
+  // Clear old sub-planets and stars, keep orbit rings
+  detailRight.querySelectorAll('.sub-planet, .detail-center').forEach(el => el.remove());
+  detailRight.insertAdjacentHTML('beforeend', rightHTML);
+
+  // Generate stars for detail view
+  generateStars('detailStars', 25);
+
+  // Transition
+  document.getElementById('homeView').classList.add('exit');
+  setTimeout(() => {
+    detailView.classList.add('active');
+  }, 200);
+}
+
+function goHome() {
+  document.getElementById('detailView').classList.remove('active');
+  document.getElementById('contentPanel').classList.remove('active');
+  setTimeout(() => {
+    document.getElementById('homeView').classList.remove('exit');
+    currentSection = null;
+    currentItem = null;
+  }, 300);
+}
+
+function openContent(sectionId, itemId) {
+  currentItem = itemId;
+  const sec = SECTIONS[sectionId];
+  const content = CONTENT[itemId] || '<p style="color:var(--muted)">内容待补充</p>';
+
+  const panel = document.getElementById('contentPanel');
+  panel.innerHTML = `
+    <div class="cp-header">
+      <button class="cp-back" onclick="closeContent()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        返回 ${sec.title}
+      </button>
+      <div class="cp-title">${sec.items.find(i => i.id === itemId)?.name || itemId}</div>
+      <a class="cp-server" href="http://123.60.211.58/" target="_blank">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        演示
+      </a>
+    </div>
+    ${content}
+  `;
+
+  panel.scrollTop = 0;
+  panel.classList.add('active');
+}
+
+function closeContent() {
+  document.getElementById('contentPanel').classList.remove('active');
+  currentItem = null;
+}
+
+function toggleItem(el) {
+  el.classList.toggle('open');
+}
+
+// ESC key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (currentItem) closeContent();
+    else if (currentSection) goHome();
+  }
+});
+
+// ═══════════════════════════════════════════════════
+//  STARS
+// ═══════════════════════════════════════════════════
+
+function generateStars(containerId, count) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  const colors = ['#1a8a7e', '#d4573e', '#e8a832', '#e8899e', '#3d66a8', '#6248a0'];
+  // 4-pointed star SVG path
+  const starSVG = (color, size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${color}"><path d="M12 0 L14.5 9.5 L24 12 L14.5 14.5 L12 24 L9.5 14.5 L0 12 L9.5 9.5 Z"/></svg>`;
+  for (let i = 0; i < count; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 100 + '%';
+    star.style.animationDelay = (Math.random() * 5) + 's';
+    star.style.animationDuration = (4 + Math.random() * 4) + 's';
+    const size = 6 + Math.random() * 10;
+    star.style.width = size + 'px';
+    star.style.height = size + 'px';
+    star.innerHTML = starSVG(colors[Math.floor(Math.random() * colors.length)], size);
+    container.appendChild(star);
+  }
+}
+
+function togglePanel() {
+  document.getElementById('homeView').classList.toggle('collapsed');
+}
+
+// Init stars
+generateStars('homeStars', 35);
+</script>
+</body>
+</html>
