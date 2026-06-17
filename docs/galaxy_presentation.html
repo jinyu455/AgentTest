@@ -2098,16 +2098,28 @@
         </div>
         <div class="bench-why">
           <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+            <div class="item-title">直接场景：强度 74.4 < 84.0 <span class="arrow-icon">▶</span></div>
+            <div class="item-detail">直接情绪场景中 Agent 流水线强度反而更低（74.4 vs 84.0）。原因是 Emotion Agent 的 prompt 设定了强度范围指南（中性 0-30、中等 40-65、强烈 66-100），Judge Agent 对 direct 路径直接透传不修正。而 GPT-5.5 直接模型没有范围约束，倾向给出更高分。</div>
+          </div>
+          <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
             <div class="item-title">讽刺场景：强度 79.6 > 73.6 <span class="arrow-icon">▶</span></div>
             <div class="item-detail">多 Agent 协作更准确识别讽刺背后的真实情绪。Sarcasm Agent 专门捕捉"言不由衷"的语义反转，将表面情绪修正为真实情绪，强度评分比直接模型高出 8.2%。</div>
           </div>
-          <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+          <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
             <div class="item-title">混合情绪：强度 60.2 > 58.4 <span class="arrow-icon">▶</span></div>
             <div class="item-detail">Mix Agent 精确拆分主次情绪比例，直接模型只能给出模糊的综合判断。例如"项目上线了但好累"，Agent 流水线能拆分为开心(45%)+疲惫(55%)，而直接模型仅输出一个笼统的情绪标签。</div>
           </div>
           <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
-            <div class="item-title">置信度更低但更合理 <span class="arrow-icon">▶</span></div>
-            <div class="item-detail">多 Agent 仲裁在不确定时主动降低置信度，不过度自信。Judge Agent 的规则引擎在两个 Agent 置信度差距 < 0.15 时触发 LLM 复核，宁可说"我不确定"也不给错误的高置信度——这在医疗/心理场景中至关重要。</div>
+            <div class="item-title">置信度对比 <span class="arrow-icon">▶</span></div>
+            <div class="item-detail">
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+                <div><strong>总体</strong>：直接模型 0.9100 vs Agent 0.8741</div>
+                <div><strong>direct</strong>：直接模型 0.9660 vs Agent 0.9320</div>
+                <div><strong>mix</strong>：直接模型 0.8600 vs Agent 0.8316</div>
+                <div><strong>sarcasm</strong>：直接模型 0.9040 vs Agent 0.8588</div>
+                <div style="margin-top:4px;color:var(--ink2)">Agent 流水线置信度普遍低于直接模型，这是因为多 Agent 仲裁在不确定时主动降低置信度，不过度自信——在心理场景中更安全。</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2275,44 +2287,112 @@
       'profile': `
     <div class="cp-section">
       <h3>用户画像系统</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">画像分为两条路径：<strong>统计数据</strong>（实时计算，无需 LLM）和 <strong>AI 画像</strong>（调用 LLM 生成，带缓存）。两者数据来源相同，但输出内容和触发方式不同。</p>
       <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
-        <div class="item-title">生成流程 <span class="arrow-icon">▶</span></div>
+        <div class="item-title">整体流程 <span class="arrow-icon">▶</span></div>
         <div class="item-detail">
           <div class="flow-box" style="margin-top:8px">
             <div class="flow">
               <div class="flow-node muted">emotion_records 情绪记录</div>
               <div class="flow-arrow"></div>
-              <div class="flow-node secondary">特征提取（纯 Python 统计）<br><span style="font-size:11px;font-weight:400">情绪分布 · 强度趋势 · 活跃时段</span></div>
-              <div class="flow-arrow"></div>
-              <div class="flow-node primary">LLM 画像生成<br><span style="font-size:11px;font-weight:400">性格特征 · 沟通风格 · MBTI · 摘要</span></div>
+              <div class="flow-branch">
+                <div class="flow-branch-item">
+                  <div class="flow-label">GET /profile</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node secondary" style="font-size:11px">纯 Python 统计<br>实时计算，无需 LLM</div>
+                </div>
+                <div class="flow-branch-item">
+                  <div class="flow-label">POST /profile/generate</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node primary" style="font-size:11px">调用 LLM 生成画像<br>结果缓存到 user_profiles</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
       <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">统计数据（GET /profile） <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="margin-bottom:8px;color:var(--ink2);line-height:1.6">纯 Python 特征提取，不调用 LLM，每次请求实时计算。</div>
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">emotion_records</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">特征提取<br><span style="font-size:11px;font-weight:400">遍历记录，统计计算</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node muted">返回统计数据</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">
+            <div><code>emotion_distribution</code> — 情绪分布比例（如 开心 0.35、悲伤 0.20）</div>
+            <div><code>avg_intensity</code> — 平均情绪强度</div>
+            <div><code>avg_confidence</code> — 平均置信度</div>
+            <div><code>sarcasm_rate</code> — 讽刺比例</div>
+            <div><code>mixed_rate</code> — 混合情绪比例</div>
+            <div><code>dominant_emotion</code> — 主导情绪</div>
+            <div><code>intensity_trend</code> — 强度趋势（上升/下降/平稳）</div>
+            <div><code>activity_pattern</code> — 活跃时段（凌晨/上午/下午/晚上，原始计数）</div>
+            <div><code>timeline</code> — 时间线数据（用于前端趋势图）</div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">AI 画像生成（POST /profile/generate） <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="margin-bottom:8px;color:var(--ink2);line-height:1.6">调用 Profile Agent（LLM），综合三部分信息生成深度画像。仅 admin 可调用。</div>
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-branch" style="gap:6px">
+                <div class="flow-branch-item">
+                  <div class="flow-node muted" style="font-size:11px">统计信息<br><span style="font-size:10px">情绪分布·强度趋势·活跃时段</span></div>
+                </div>
+                <div class="flow-branch-item">
+                  <div class="flow-node muted" style="font-size:11px">对话摘要<br><span style="font-size:10px">最近一轮对话（≤20条）</span></div>
+                </div>
+                <div class="flow-branch-item">
+                  <div class="flow-node muted" style="font-size:11px">已有画像<br><span style="font-size:10px">上次生成的缓存结果</span></div>
+                </div>
+              </div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node primary">Profile Agent（LLM）<br><span style="font-size:11px;font-weight:400">temperature=0.3</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node muted">更新 user_profiles 缓存</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">
+            <div><code>personality_traits</code> — 2-4 个核心性格特征（如"内向敏感"、"追求完美"）</div>
+            <div><code>communication_style</code> — 对话中的沟通倾向（如"偏好简洁回应"）</div>
+            <div><code>emotional_patterns</code> — 情绪变化规律和触发因素</div>
+            <div><code>mbti</code> — 根据对话判断的 MBTI 类型（4 位字母或 UNKNOWN）</div>
+            <div><code>summary</code> — 整体画像总结（记录 &lt; 10 条时标注"数据量不足，仅供参考"）</div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--yellow);margin-top:10px" onclick="toggleItem(this)">
         <div class="item-title">缓存策略 <span class="arrow-icon">▶</span></div>
         <div class="item-detail">
           <div class="flow-box" style="margin-top:8px">
             <div class="flow">
-              <div class="flow-node muted">用户请求画像</div>
+              <div class="flow-node muted">请求 /profile/generate</div>
               <div class="flow-arrow"></div>
               <div class="flow-branch">
                 <div class="flow-branch-item">
                   <div class="flow-label">无缓存</div>
                   <div class="flow-arrow"></div>
-                  <div class="flow-node highlight" style="font-size:12px">LLM 生成</div>
+                  <div class="flow-node highlight" style="font-size:12px">LLM 生成 → 存入 user_profiles</div>
                 </div>
                 <div class="flow-branch-item">
                   <div class="flow-label">有缓存</div>
                   <div class="flow-arrow"></div>
                   <div class="flow-branch" style="gap:8px">
                     <div class="flow-branch-item">
-                      <div class="flow-label">≥10 条</div>
+                      <div class="flow-label">新增 ≥ 10 条</div>
                       <div class="flow-arrow"></div>
                       <div class="flow-node secondary" style="font-size:11px">重新生成</div>
                     </div>
                     <div class="flow-branch-item">
-                      <div class="flow-label">&lt;10 条</div>
+                      <div class="flow-label">新增 &lt; 10 条</div>
                       <div class="flow-arrow"></div>
                       <div class="flow-node secondary" style="font-size:11px">返回缓存</div>
                     </div>
@@ -2321,17 +2401,12 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
-      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
-        <div class="item-title">画像输出字段 <span class="arrow-icon">▶</span></div>
-        <div class="item-detail">
-          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-            <div><code>personality_traits</code> — 2-4 个核心性格特征（如"内向敏感"、"追求完美"）</div>
-            <div><code>communication_style</code> — 对话中的沟通倾向（如"偏好简洁回应"）</div>
-            <div><code>emotional_patterns</code> — 情绪变化规律和触发因素</div>
-            <div><code>mbti</code> — 根据对话判断的 MBTI 类型</div>
-            <div><code>summary</code> — 整体画像总结（记录 < 10 条时标注"数据量不足，仅供参考"）</div>
+          <div style="margin-top:10px;color:var(--ink2);line-height:1.6">
+            <div>• 首次调用 → 直接生成</div>
+            <div>• 再次调用 → 对比 emotion_records 总数与缓存时的记录数</div>
+            <div>• 新增 ≥ 10 条 → 重新生成</div>
+            <div>• 新增 &lt; 10 条 → 返回缓存</div>
+            <div>• admin 可传 <code>force=true</code> 强制重新生成</div>
           </div>
         </div>
       </div>
@@ -2546,9 +2621,9 @@
             <div class="flow">
               <div class="flow-node muted">Git Push / PR → main 分支</div>
               <div class="flow-arrow"></div>
-              <div class="flow-node secondary">CI 阶段：Java 17 Maven test + Python 3.10 compileall</div>
+              <div class="flow-node primary">rsync 增量同步代码<br><span style="font-size:12px;font-weight:400">排除 .git / .env / *.sqlite3 / node_modules / target / __pycache__</span></div>
               <div class="flow-arrow"></div>
-              <div class="flow-node primary">rsync 同步代码（SSH 隧道）<br><span style="font-size:12px;font-weight:400">排除 .git / .env / *.sqlite3 / node_modules / target / __pycache__</span></div>
+              <div class="flow-node secondary">CI 阶段：Java 17 Maven test + Python 3.10 compileall</div>
               <div class="flow-arrow"></div>
               <div class="flow-node secondary">SSH 远程执行重启命令</div>
               <div class="flow-arrow"></div>

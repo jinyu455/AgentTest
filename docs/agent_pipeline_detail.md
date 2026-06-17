@@ -351,9 +351,7 @@ Router、Emotion、Sarcasm、Mix 四个 Agent 共享相同的输入结构：
 | `emotional_patterns` | `string` | LLM | 情绪模式分析 |
 | `mbti` | `string` | LLM | MBTI 人格类型（4 位字母或 "UNKNOWN"） |
 | `summary` | `string` | LLM | 综合画像摘要 |
-| `radar_chart` | `object` | 可视化 | 9 轴雷达图数据（每轴对应一种情绪） |
-| `timeline` | `object` | 可视化 | 时间线数据（按时间排序，含 created_at、emotion、intensity） |
-| `intensity_distribution` | `object` | 可视化 | 强度分布（5 档：0-20、21-40、41-60、61-80、81-100） |
+| `timeline` | `object` | 可视化 | 时间线数据（前端趋势图使用） |
 
 ### 活跃时段划分
 
