@@ -224,6 +224,8 @@ Router、Emotion、Sarcasm、Mix 四个 Agent 共享相同的输入结构：
 
 ### 规则裁决逻辑
 
+规则层始终执行，所有情况都能给出结果。低置信度时回退到 Emotion 结果并降低置信度，作为兜底输出。
+
 **direct 路径**：
 - 直接采用 Emotion Agent 结果，`is_sarcasm = false`，`is_mixed = false`
 
@@ -232,28 +234,23 @@ Router、Emotion、Sarcasm、Mix 四个 Agent 共享相同的输入结构：
 | 条件 | 处理 |
 |------|------|
 | `is_sarcasm = true` 且讽刺置信度 >= 0.65 | 采用讽刺 Agent 的 `true_emotion` 和 `revised_intensity`；加权置信度 = emotion*0.3 + sarcasm*0.7 |
-| `is_sarcasm = true` 但讽刺置信度 < 0.65 | 回退到 Emotion 结果，置信度降低 20% |
-| `is_sarcasm = false` | 采用 Emotion 结果，置信度降低 10% |
+| `is_sarcasm = true` 但讽刺置信度 < 0.65 | **兜底**：回退到 Emotion 结果，置信度 ×0.8 |
+| `is_sarcasm = false` | 采用 Emotion 结果，置信度 ×0.9 |
 
 **mix 路径**：
 
 | 条件 | 处理 |
 |------|------|
 | `is_mixed = true` 且混合置信度 >= 0.65 | 采用 Mix Agent 的 `primary_emotion`、`secondary_emotion`、`adjusted_intensity`；加权置信度 = emotion*0.3 + mix*0.7 |
-| `is_mixed = true` 但混合置信度 < 0.65 | 回退到 Emotion 结果，置信度降低 20% |
-| `is_mixed = false` | 采用 Emotion 结果，置信度降低 10% |
+| `is_mixed = true` 但混合置信度 < 0.65 | **兜底**：回退到 Emotion 结果，置信度 ×0.8 |
+| `is_mixed = false` | 采用 Emotion 结果，置信度 ×0.9 |
 
 ### LLM 兜底触发条件
 
-当满足以下任一条件时，升级到 LLM 裁决：
+规则层已覆盖所有情况，LLM 仅在规则结果不确定时介入：
 
-1. Emotion Agent 置信度 < 0.65
-2. Sarcasm/Mix Agent 缺失 或 置信度 < 0.65
-3. Sarcasm/Mix 与 Emotion 置信度差 <= 0.15
-
-### Fallback
-
-先尝试纯规则裁决，失败后回退到原始 Emotion 结果。
+1. Emotion Agent 置信度 < 0.65——情绪本身不可靠
+2. Sarcasm/Mix 与 Emotion 置信度差 <= 0.15——两个 Agent 打架，规则无法裁决
 
 ---
 
