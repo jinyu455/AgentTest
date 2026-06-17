@@ -23,11 +23,11 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Build backend
+      - name: Build backend and generate coverage
         working-directory: backend
         run: mvn clean verify
 
       - name: Run SonarCloud scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
