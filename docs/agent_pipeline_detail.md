@@ -278,7 +278,6 @@ Router、Emotion、Sarcasm、Mix 四个 Agent 共享相同的输入结构：
 | `reply` | `string` | 是 | -- | 回复内容（不能为空） |
 | `tone` | `string` | 是 | -- | 语气：`"supportive"` / `"calm"` / `"encouraging"` / `"reflective"` / `"crisis_support"` |
 | `risk_hint` | `string` | 是 | -- | 风险提示：`"none"` / `"possible_crisis"` |
-| `suggested_actions` | `string[]` | 否 | `[]` | 建议的行动 |
 | `reason` | `string` | 否 | `""` | 生成理由 |
 
 ### 关键规则
@@ -406,7 +405,7 @@ Router、Emotion、Sarcasm、Mix 四个 Agent 共享相同的输入结构：
     [Judge Agent] ──→ final_emotion, secondary_emotion, final_intensity,
               │       final_confidence, is_sarcasm, is_mixed, reason
               v
-    [Chat Agent] ──→ reply, tone, risk_hint, suggested_actions, reason
+    [Chat Agent] ──→ reply, tone, risk_hint, reason
               │
               v
          用户回复
