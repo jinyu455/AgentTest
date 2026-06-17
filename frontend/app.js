@@ -999,7 +999,7 @@ function renderKeyValueBars(container, source, emptyText) {
   container.innerHTML = entries
     .map(([label, value]) => {
       const width = Math.max(4, ((Number(value) || 0) / maxValue) * 100);
-      const display = Number(value) <= 1 ? `${Math.round(Number(value) * 100)}%` : String(value);
+      const display = String(value);
       return `
         <div class="kv-bar">
           <span>${escapeHtml(label)}</span>
