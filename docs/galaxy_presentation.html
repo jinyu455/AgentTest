@@ -1737,6 +1737,7 @@
         items: [
           { id: 'db', name: '数据库与接口', desc: '5 张表 + REST API', letter: 'D' },
           { id: 'auth', name: '认证与权限', desc: 'SHA-256 + JWT + 角色', letter: 'A' },
+          { id: 'persistence', name: '数据落库', desc: '存储时机 + 目标表', letter: 'S' },
         ]
       },
       frontend: {
@@ -2231,7 +2232,7 @@
         <div class="item-detail">
           <table class="detail-table">
             <tr><th>方法</th><th>路径</th><th>说明</th></tr>
-            <tr><td>POST</td><td>/api/emotion/analyze</td><td>情绪分析（纯分析，不保存）</td></tr>
+            <tr><td>POST</td><td>/api/emotion/analyze</td><td>情绪分析 + 画像采样持久化</td></tr>
             <tr><td>POST</td><td>/api/emotion/chat</td><td>情绪分析 + AI 回复 + 持久化</td></tr>
             <tr><td>GET</td><td>/api/emotion/conversations</td><td>获取对话列表（admin 看所有）</td></tr>
             <tr><td>GET</td><td>/api/emotion/messages</td><td>获取对话内消息列表</td></tr>
@@ -2280,6 +2281,61 @@
             <tr><td>/api/emotion/profile</td><td>仅自己</td><td>所有人</td></tr>
             <tr><td>/api/emotion/profile/generate</td><td>403 禁止</td><td>所有人</td></tr>
           </table>
+        </div>
+      </div>
+    </div>`,
+
+      'persistence': `
+    <div class="cp-section">
+      <h3>数据落库时机</h3>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">后端并不是所有接口都会写库：查询类接口只读；注册、聊天、单次分析和画像生成会在关键节点持久化。</p>
+
+      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
+        <div class="item-title">聊天链路落库 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">POST /api/emotion/chat</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node secondary">conversations<br><span style="font-size:11px;font-weight:400">新建会话或刷新 updated_at</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node primary">chat_messages(user)<br><span style="font-size:11px;font-weight:400">保存用户本轮输入</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node highlight">emotion_records<br><span style="font-size:11px;font-weight:400">保存 Judge 结果和完整分析 JSON</span></div>
+              <div class="flow-arrow"></div>
+              <div class="flow-node primary">chat_messages(assistant)<br><span style="font-size:11px;font-weight:400">保存 AI 回复并刷新会话</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">接口与目标表 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <table class="detail-table">
+            <tr><th>触发时机</th><th>写入/更新表</th><th>保存内容</th></tr>
+            <tr><td>服务启动且默认管理员不存在</td><td><code>users</code></td><td>创建 admin 用户，保存用户名、盐值、密码哈希、角色和创建时间</td></tr>
+            <tr><td>POST /api/auth/register 注册成功</td><td><code>users</code></td><td>创建普通 user，保存加盐哈希后的密码和基础身份信息</td></tr>
+            <tr><td>POST /api/emotion/chat 开始聊天</td><td><code>conversations</code></td><td>无 conversation_id 时新建会话；已有会话时校验归属并更新最后活跃时间</td></tr>
+            <tr><td>POST /api/emotion/chat 接收用户消息</td><td><code>chat_messages</code></td><td>写入 role=<code>user</code> 的消息，关联当前会话</td></tr>
+            <tr><td>POST /api/emotion/chat 完成情绪分析</td><td><code>emotion_records</code></td><td>写入最终情绪、次情绪、强度、置信度、讽刺/混合标记和完整分析 JSON</td></tr>
+            <tr><td>POST /api/emotion/chat 生成回复</td><td><code>chat_messages</code> + <code>conversations</code></td><td>写入 role=<code>assistant</code> 的回复，并刷新会话 updated_at</td></tr>
+            <tr><td>POST /api/emotion/analyze 单次分析</td><td><code>conversations</code> + <code>chat_messages</code> + <code>emotion_records</code></td><td>写入“画像采样”隐藏会话、用户文本和情绪记录，用于后续画像统计</td></tr>
+            <tr><td>POST /api/emotion/profile/generate 首次生成</td><td><code>user_profiles</code></td><td>保存 LLM 画像 JSON、生成时记录数、创建时间和更新时间</td></tr>
+            <tr><td>POST /api/emotion/profile/generate 刷新画像</td><td><code>user_profiles</code></td><td>force=true 或新增满 10 条记录时更新 profile_data、record_count、updated_at</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="click-item" style="border-left:3px solid var(--yellow);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">只读或内存态操作 <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+            <div><strong>GET /api/auth/captcha</strong>：验证码保存在内存 <code>captchaStore</code>，5 分钟过期，不进入 SQLite。</div>
+            <div><strong>POST /api/auth/login</strong>：只校验密码并签发 JWT，不更新用户表。</div>
+            <div><strong>GET /api/emotion/conversations</strong>、<strong>GET /api/emotion/conversations/{conversationId}/messages</strong>：只读取历史会话和消息。</div>
+            <div><strong>POST /api/emotion/profile</strong>：读取 <code>emotion_records</code> 实时生成统计，不写 <code>user_profiles</code>。</div>
+          </div>
         </div>
       </div>
     </div>`,
