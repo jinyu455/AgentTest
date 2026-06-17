@@ -248,8 +248,8 @@ Router、Emotion、Sarcasm、Mix 四个 Agent 共享相同的输入结构：
 当满足以下任一条件时，升级到 LLM 裁决：
 
 1. Emotion Agent 置信度 < 0.65
-2. 讽刺路径：Sarcasm Agent 缺失、置信度 < 0.65、与 Emotion 置信度差 <= 0.15、或 `true_emotion` 与 Emotion 标签不一致
-3. 混合路径：Mix Agent 缺失、置信度 < 0.65、与 Emotion 置信度差 <= 0.15、或情绪标签不一致
+2. Sarcasm/Mix Agent 缺失 或 置信度 < 0.65
+3. Sarcasm/Mix 与 Emotion 置信度差 <= 0.15
 
 ### Fallback
 

@@ -237,16 +237,13 @@ class JudgeAgent(CoercionMixin):
             sarcasm_confidence = self._clamp01(
                 self._coerce_float(sarcasm.get("confidence", 0), "sarcasm.confidence")
             )
-            true_emotion = str(sarcasm.get("true_emotion", "")).strip()
             confidence_gap = abs(sarcasm_confidence - emotion_confidence)
             # 以下任一条件满足则需要大模型介入：
             # 1. 反讽置信度低于阈值（结果不可靠）
             # 2. 反讽和情感 Agent 的置信度差距小（难以确定哪个更可信）
-            # 3. 反讽成立且识别出的真实情绪与情感 Agent 不同（存在矛盾）
             return (
                 sarcasm_confidence < self.sarcasm_confidence_threshold
                 or confidence_gap <= self.review_confidence_margin
-                or (bool(sarcasm.get("is_sarcasm")) and true_emotion and true_emotion != emotion_label)
             )
 
         # 混合情绪分支的判断逻辑（与反讽分支类似）
@@ -254,12 +251,10 @@ class JudgeAgent(CoercionMixin):
             if not mix:
                 return True
             mix_confidence = self._clamp01(self._coerce_float(mix.get("confidence", 0), "mix.confidence"))
-            primary_emotion = str(mix.get("primary_emotion", "")).strip()
             confidence_gap = abs(mix_confidence - emotion_confidence)
             return (
                 mix_confidence < self.mix_confidence_threshold
                 or confidence_gap <= self.review_confidence_margin
-                or (bool(mix.get("is_mixed")) and primary_emotion and primary_emotion != emotion_label)
             )
 
         return False
