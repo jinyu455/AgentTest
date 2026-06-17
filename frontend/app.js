@@ -1,5 +1,3 @@
-const STORAGE_KEY = "emoagent.chat.state";
-const STORAGE_KEY = "emoagent.chat.state";
 const API_KEY = "emoagent.api.base";
 const AUTH_KEY = "emoagent.auth";
 const DEFAULT_API_BASE = window.location.origin;
@@ -13,7 +11,6 @@ const ALLOWED_API_ORIGINS = new Set([
 ]);
 
 const state = {
-  apiBase: localStorage.getItem(API_KEY) || DEFAULT_API_BASE,
   auth: loadAuth(),
   conversationId: null,
   conversations: [],
@@ -1125,42 +1122,36 @@ function resetConversation() {
   els.messageInput.focus();
 }
 
-function getSafeApiBase(apiBase) {
-  const candidate = typeof apiBase === "string" && apiBase.trim() ? apiBase.trim() : DEFAULT_API_BASE;
-  const baseUrl = new URL(candidate, window.location.origin);
-
-  if (!ALLOWED_API_ORIGINS.has(baseUrl.origin)) {
-    return new URL(DEFAULT_API_BASE);
-  }
-
-  return baseUrl;
-}
-
-function buildSafeApiUrl(apiBase, path) {
-  if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) {
+function normalizeApiPath(path) {
+  if (typeof path !== "string") {
     throw new Error("Invalid API path");
   }
 
-  const baseUrl = getSafeApiBase(apiBase);
-  return new URL(path, baseUrl.origin).toString();
+  if (!path.startsWith("/") || path.startsWith("//")) {
+    throw new Error("Invalid API path");
+  }
+
+  return path;
 }
 
 async function apiFetch(path, options = {}) {
   const { auth = true, headers = {}, ...fetchOptions } = options;
   const requestHeaders = { ...headers };
+
   if (fetchOptions.body && !requestHeaders["Content-Type"]) {
     requestHeaders["Content-Type"] = "application/json";
   }
+
   if (auth && state.auth?.token) {
     requestHeaders.Authorization = `Bearer ${state.auth.token}`;
   }
 
- const safeUrl = buildSafeApiUrl(state.apiBase, path);
+  const safePath = normalizeApiPath(path);
 
-const response = await fetch(safeUrl, {
-  ...fetchOptions,
-  headers: requestHeaders,
-});
+  const response = await fetch(safePath, {
+    ...fetchOptions,
+    headers: requestHeaders,
+  });
 
   if (response.status === 401 && auth) {
     logout("登录已失效，请重新登录。");
