@@ -647,7 +647,7 @@ function renderEmotionHistory(profile) {
   els.historyAvgIntensity.textContent = avgIntensity != null ? avgIntensity.toFixed(1) : "--";
   els.historyAvgConfidence.textContent = avgConfidence != null ? toPercent(avgConfidence) : "--";
   renderComboChart(profile);
-  renderKeyValueBars(els.emotionDistributionList, profile?.emotion_distribution, "暂无情绪分布");
+  renderKeyValueBars(els.emotionDistributionList, profile?.emotion_distribution, "暂无情绪分布", true);
   renderKeyValueBars(els.activityPatternList, profile?.activity_pattern, "暂无活跃时段");
 }
 
@@ -888,7 +888,7 @@ function renderAdminDashboard(profile) {
     ? traits.map((trait) => `<span class="chip">${escapeHtml(trait)}</span>`).join("")
     : `<span class="chip">暂无特征</span>`;
   renderComboChart(profile, els.adminComboChart);
-  renderKeyValueBars(els.adminEmotionDistributionList, profile?.emotion_distribution, "暂无情绪分布");
+  renderKeyValueBars(els.adminEmotionDistributionList, profile?.emotion_distribution, "暂无情绪分布", true);
   renderKeyValueBars(els.adminActivityPatternList, profile?.activity_pattern, "暂无活跃时段");
 }
 
@@ -989,7 +989,7 @@ function renderComboChart(profile, container = els.emotionComboChart) {
   `;
 }
 
-function renderKeyValueBars(container, source, emptyText) {
+function renderKeyValueBars(container, source, emptyText, percent = false) {
   const entries = Object.entries(source || {}).filter(([, value]) => Number(value) > 0);
   if (!entries.length) {
     container.innerHTML = `<p class="chart-empty">${emptyText}</p>`;
@@ -999,7 +999,7 @@ function renderKeyValueBars(container, source, emptyText) {
   container.innerHTML = entries
     .map(([label, value]) => {
       const width = Math.max(4, ((Number(value) || 0) / maxValue) * 100);
-      const display = String(value);
+      const display = percent ? `${Math.round(Number(value) * 100)}%` : String(value);
       return `
         <div class="kv-bar">
           <span>${escapeHtml(label)}</span>
