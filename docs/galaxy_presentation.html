@@ -1852,7 +1852,7 @@ const CONTENT = {
   // ── Frontend ──
   'structure': `
     <div class="cp-section">
-      <h3>技术选型与文件结构</h3>
+      <h3>技术选型</h3>
       <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">原生 HTML/CSS/JS，无框架、无构建工具、无 npm 依赖。Nginx 直接作为静态文件服务，双击 index.html 即可本地预览。</p>
       <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
         <div class="item-title">技术架构 <span class="arrow-icon">▶</span></div>
@@ -1884,30 +1884,6 @@ const CONTENT = {
             <tr><td>HTTP 请求</td><td>原生 fetch API</td><td>封装 api() 函数统一处理 JWT Header + 错误码</td></tr>
             <tr><td>动态加载</td><td>partials.js fetch HTML 片段</td><td>auth.html（登录/注册）和 workspace.html（聊天/画像）按需加载</td></tr>
           </table>
-        </div>
-      </div>
-      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
-        <div class="item-title">文件结构 <span class="arrow-icon">▶</span></div>
-        <div class="item-detail">
-          <div style="font-family:monospace;font-size:13px;background:var(--bg);padding:14px;border-radius:8px;box-shadow:var(--neo-inset);line-height:1.8">
-            frontend/<br>
-            ├── index.html &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 入口，加载 partials + scripts<br>
-            ├── app.js &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 全部业务逻辑（~1300 行）<br>
-            ├── partials.js &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 动态加载 HTML 片段<br>
-            ├── styles.css &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# @import 8 个模块<br>
-            ├── partials/<br>
-            │ &nbsp;&nbsp;├── auth.html &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 登录/注册/验证码界面<br>
-            │ &nbsp;&nbsp;└── workspace.html &nbsp;&nbsp;&nbsp;# 聊天/画像/管理主界面<br>
-            └── styles/<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;├── tokens.css &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# 设计变量（颜色/间距/阴影）<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;├── auth.css<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;├── workspace.css<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;├── chat.css<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;├── profile.css<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;├── admin.css<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;├── charts.css<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;└── responsive.css
-          </div>
         </div>
       </div>
     </div>`,
