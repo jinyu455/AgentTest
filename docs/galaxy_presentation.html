@@ -1510,7 +1510,7 @@ const CONTENT = {
         <div class="item-title">规则裁决逻辑 <span class="arrow-icon">▶</span></div>
         <div class="item-detail">
           <div style="margin-top:4px">
-            <p style="margin-bottom:12px;color:var(--ink2);line-height:1.6">规则层始终执行，所有情况都能给出结果。低置信度时回退到 Emotion 结果并降低置信度，作为兜底输出。</p>
+            <p style="margin-bottom:12px;color:var(--ink2);line-height:1.6">规则只处理<strong>确定的情况</strong>。不确定的情况（如检测到讽刺但置信度低）交给 LLM 仲裁。</p>
             <div style="margin-bottom:12px">
               <div style="font-weight:600;color:var(--accent);margin-bottom:6px">direct 路径</div>
               <div>直接采用 Emotion Agent 结果，<code>is_sarcasm = false</code>，<code>is_mixed = false</code></div>
@@ -1519,18 +1519,18 @@ const CONTENT = {
               <div style="font-weight:600;color:var(--coral);margin-bottom:6px">sarcasm_suspected 路径</div>
               <table class="detail-table" style="width:100%">
                 <tr><th style="width:40%">条件</th><th>处理</th></tr>
-                <tr><td><code>is_sarcasm = true</code> 且讽刺置信度 ≥ 0.65</td><td>采用 Sarcasm Agent 的 <code>true_emotion</code> 和 <code>revised_intensity</code>；加权置信度 = emotion×0.3 + sarcasm×0.7</td></tr>
-                <tr><td><code>is_sarcasm = true</code> 但讽刺置信度 &lt; 0.65</td><td><strong>兜底</strong>：回退到 Emotion 结果，置信度 ×0.8</td></tr>
-                <tr><td><code>is_sarcasm = false</code></td><td>采用 Emotion 结果，置信度 ×0.9</td></tr>
+                <tr><td><code>is_sarcasm = true</code> 且置信度 ≥ 0.65</td><td>规则裁决：采用 Sarcasm Agent 的 <code>true_emotion</code> 和 <code>revised_intensity</code>；加权置信度 = emotion×0.3 + sarcasm×0.7</td></tr>
+                <tr><td><code>is_sarcasm = true</code> 但置信度 &lt; 0.65</td><td><strong>升级 LLM</strong>：讽刺检测不确定，规则无法裁决</td></tr>
+                <tr><td><code>is_sarcasm = false</code></td><td>规则裁决：采用 Emotion 结果，置信度 ×0.9</td></tr>
               </table>
             </div>
             <div>
               <div style="font-weight:600;color:var(--violet);margin-bottom:6px">mix 路径</div>
               <table class="detail-table" style="width:100%">
                 <tr><th style="width:40%">条件</th><th>处理</th></tr>
-                <tr><td><code>is_mixed = true</code> 且混合置信度 ≥ 0.65</td><td>采用 Mix Agent 的 <code>primary_emotion</code>、<code>secondary_emotion</code>、<code>adjusted_intensity</code>；加权置信度 = emotion×0.3 + mix×0.7</td></tr>
-                <tr><td><code>is_mixed = true</code> 但混合置信度 &lt; 0.65</td><td><strong>兜底</strong>：回退到 Emotion 结果，置信度 ×0.8</td></tr>
-                <tr><td><code>is_mixed = false</code></td><td>采用 Emotion 结果，置信度 ×0.9</td></tr>
+                <tr><td><code>is_mixed = true</code> 且置信度 ≥ 0.65</td><td>规则裁决：采用 Mix Agent 的 <code>primary_emotion</code>、<code>secondary_emotion</code>、<code>adjusted_intensity</code>；加权置信度 = emotion×0.3 + mix×0.7</td></tr>
+                <tr><td><code>is_mixed = true</code> 但置信度 &lt; 0.65</td><td><strong>升级 LLM</strong>：混合情绪检测不确定，规则无法裁决</td></tr>
+                <tr><td><code>is_mixed = false</code></td><td>规则裁决：采用 Emotion 结果，置信度 ×0.9</td></tr>
               </table>
             </div>
           </div>
@@ -1541,8 +1541,9 @@ const CONTENT = {
         <div class="item-detail">
           <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
             <div>① Emotion Agent 置信度 &lt; 0.65——情绪本身不可靠</div>
-            <div>② Sarcasm/Mix 与 Emotion 置信度差 ≤ 0.15——两个 Agent 打架，规则无法裁决</div>
-            <div>满足任一条件 → 规则结果不确定，升级到 LLM 辅助仲裁</div>
+            <div>② Sarcasm/Mix 置信度 &lt; 0.65——检测不确定，规则无法裁决</div>
+            <div>③ Sarcasm/Mix 与 Emotion 置信度差 ≤ 0.15——两个 Agent 打架，规则无法裁决</div>
+            <div>满足任一条件 → 升级到 LLM 辅助仲裁</div>
           </div>
         </div>
       </div>
