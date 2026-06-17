@@ -1,7 +1,16 @@
 const STORAGE_KEY = "emoagent.chat.state";
+const STORAGE_KEY = "emoagent.chat.state";
 const API_KEY = "emoagent.api.base";
 const AUTH_KEY = "emoagent.auth";
 const DEFAULT_API_BASE = window.location.origin;
+
+const ALLOWED_API_ORIGINS = new Set([
+  window.location.origin,
+  "http://localhost:8000",
+  "http://127.0.0.1:8000",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
+]);
 
 const state = {
   apiBase: localStorage.getItem(API_KEY) || DEFAULT_API_BASE,
@@ -1116,6 +1125,26 @@ function resetConversation() {
   els.messageInput.focus();
 }
 
+function getSafeApiBase(apiBase) {
+  const candidate = typeof apiBase === "string" && apiBase.trim() ? apiBase.trim() : DEFAULT_API_BASE;
+  const baseUrl = new URL(candidate, window.location.origin);
+
+  if (!ALLOWED_API_ORIGINS.has(baseUrl.origin)) {
+    return new URL(DEFAULT_API_BASE);
+  }
+
+  return baseUrl;
+}
+
+function buildSafeApiUrl(apiBase, path) {
+  if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) {
+    throw new Error("Invalid API path");
+  }
+
+  const baseUrl = getSafeApiBase(apiBase);
+  return new URL(path, baseUrl.origin).toString();
+}
+
 async function apiFetch(path, options = {}) {
   const { auth = true, headers = {}, ...fetchOptions } = options;
   const requestHeaders = { ...headers };
@@ -1126,10 +1155,12 @@ async function apiFetch(path, options = {}) {
     requestHeaders.Authorization = `Bearer ${state.auth.token}`;
   }
 
-  const response = await fetch(`${state.apiBase}${path}`, {
-    ...fetchOptions,
-    headers: requestHeaders,
-  });
+ const safeUrl = buildSafeApiUrl(state.apiBase, path);
+
+const response = await fetch(safeUrl, {
+  ...fetchOptions,
+  headers: requestHeaders,
+});
 
   if (response.status === 401 && auth) {
     logout("登录已失效，请重新登录。");
