@@ -241,7 +241,7 @@ Router、Emotion、Sarcasm、Mix 四个 Agent 共享相同的输入结构：
 
 | 条件 | 处理 |
 |------|------|
-| `is_mixed = true` 且置信度 >= 0.65 | 规则裁决：采用 Mix Agent 的 `primary_emotion`、`secondary_emotion`、`adjusted_intensity`；加权置信度 = emotion*0.3 + mix*0.7 |
+| `is_mixed = true` 且置信度 >= 0.65 | 规则裁决：采用 Mix Agent 的 `primary_emotion`、`secondary_emotion`、`adjusted_intensity`；置信度按 `mix_ratio` 中主次情绪比例加权 |
 | `is_mixed = true` 但置信度 < 0.65 | **升级 LLM**：混合情绪检测不确定，规则无法裁决 |
 | `is_mixed = false` | 规则裁决：采用 Emotion 结果，置信度 ×0.9 |
 

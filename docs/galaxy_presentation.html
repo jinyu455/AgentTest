@@ -1724,7 +1724,6 @@
           { id: 'judge', name: 'Judge', desc: '最终仲裁', letter: 'J' },
           { id: 'chat', name: 'Chat', desc: '对话回复', letter: 'C' },
           { id: 'profile', name: '用户画像', desc: 'LLM 生成 + 缓存', letter: 'U' },
-          { id: 'fallback', name: 'Fallback', desc: '降级机制', letter: 'F' },
           { id: 'benchmark', name: 'Benchmark', desc: '对比分析', letter: 'B' },
         ]
       },
@@ -1783,9 +1782,9 @@
       'pipeline': `
     <div class="cp-section">
       <h3>整体架构</h3>
-      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">6 个 Agent 协作：Router 分流 → Emotion 必调 → Sarcasm/Mix 条件调用 → Judge 仲裁 → Chat 回复</p>
+      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">7 个 Agent 协作：对话流水线（Router → Emotion → Sarcasm/Mix → Judge → Chat）+ 独立的用户画像生成（Profile）</p>
       <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
-        <div class="item-title">流水线流程 <span class="arrow-icon">▶</span></div>
+        <div class="item-title">对话流水线 <span class="arrow-icon">▶</span></div>
         <div class="item-detail">
           <div class="flow-box" style="margin-top:8px">
             <div class="flow">
@@ -1816,11 +1815,35 @@
         </div>
       </div>
       <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
+        <div class="item-title">用户画像（独立运行） <span class="arrow-icon">▶</span></div>
+        <div class="item-detail">
+          <div class="flow-box" style="margin-top:8px">
+            <div class="flow">
+              <div class="flow-node muted">emotion_records 累积</div>
+              <div class="flow-arrow"></div>
+              <div class="flow-branch">
+                <div class="flow-branch-item">
+                  <div class="flow-label">GET /profile</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node secondary" style="font-size:11px">纯统计（实时计算）</div>
+                </div>
+                <div class="flow-branch-item">
+                  <div class="flow-label">POST /profile/generate</div>
+                  <div class="flow-arrow"></div>
+                  <div class="flow-node primary" style="font-size:11px">Profile Agent（LLM）<br><span style="font-size:10px;font-weight:400">统计信息 + 对话摘要 + 已有画像</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
         <div class="item-title">部署模型 <span class="arrow-icon">▶</span></div>
         <div class="item-detail">
           <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
             <div><strong>分析 Agent</strong>（Router / Emotion / Sarcasm / Mix / Judge）→ <code>qwen-flash</code>（快速低成本，每次分析约 1-3s）</div>
             <div><strong>对话 Agent</strong>（Chat）→ <code>qwen-plus</code>（质量更高，回复更自然，约 3-6s）</div>
+            <div><strong>画像 Agent</strong>（Profile）→ <code>qwen-plus</code>（深度分析，按需调用，约 8-15s）</div>
           </div>
         </div>
       </div>
@@ -1942,7 +1965,7 @@
             <tr><th>场景</th><th>Agent</th><th>分析结果</th></tr>
             <tr><td>"太好了，又改需求了"</td><td>Sarcasm</td><td>表面开心 → 真实厌烦</td></tr>
             <tr><td>"项目上线了，但好累"</td><td>Mix</td><td>开心(45%) + 疲惫(55%)</td></tr>
-            <tr><td>"还真是有意思啊"</td><td>Sarcasm</td><td>表面中性 → 真实无奈</td></tr>
+            <tr><td>"11点改需求，还真是有意思啊"</td><td>Sarcasm</td><td>表面赞美 → 真实无奈</td></tr>
             <tr><td>"有点开心又有点焦虑"</td><td>Mix</td><td>开心(50%) + 焦虑(50%)</td></tr>
           </table>
         </div>
@@ -1952,7 +1975,7 @@
         <div class="item-detail">
           <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
             <div>① <strong>检测维度</strong>——转折结构、同句双向情绪、模糊低能量表达</div>
-            <div>② <strong>关键判断</strong>：是否同时体验两种以上情绪（共存非反转）</div>
+            <div>② <strong>关键判断</strong>：是否同时体验两种情绪（共存非反转）</div>
             <div>③ <strong>输出 JSON</strong>：<code>is_mixed</code> + <code>primary_emotion</code> + <code>secondary_emotion</code> + <code>emotion_ratio</code> + <code>adjusted_intensity</code> + <code>mixed_confidence</code></div>
             <div>④ <strong>典型场景</strong>："项目上线了但好累" → 开心(45%)+疲惫(55%)</div>
           </div>
@@ -1998,7 +2021,7 @@
               <div style="font-weight:600;color:var(--violet);margin-bottom:6px">mix 路径</div>
               <table class="detail-table" style="width:100%">
                 <tr><th style="width:40%">条件</th><th>处理</th></tr>
-                <tr><td><code>is_mixed = true</code> 且置信度 ≥ 0.65</td><td>规则裁决：采用 Mix Agent 的 <code>primary_emotion</code>、<code>secondary_emotion</code>、<code>adjusted_intensity</code>；加权置信度 = emotion×0.3 + mix×0.7</td></tr>
+                <tr><td><code>is_mixed = true</code> 且置信度 ≥ 0.65</td><td>规则裁决：采用 Mix Agent 的 <code>primary_emotion</code>、<code>secondary_emotion</code>、<code>adjusted_intensity</code>；置信度按 <code>mix_ratio</code> 中主次情绪比例加权</td></tr>
                 <tr><td><code>is_mixed = true</code> 但置信度 &lt; 0.65</td><td><strong>升级 LLM</strong>：混合情绪检测不确定，规则无法裁决</td></tr>
                 <tr><td><code>is_mixed = false</code></td><td>规则裁决：采用 Emotion 结果，置信度 ×0.9</td></tr>
               </table>
@@ -2050,42 +2073,6 @@
             <div>④ <strong>输出</strong>：<code>reply</code> + <code>tone</code> + <code>risk_hint</code> + <code>reason</code></div>
           </div>
         </div>
-      </div>
-    </div>`,
-
-      'fallback': `
-    <div class="cp-section">
-      <h3>Fallback 降级机制</h3>
-      <p style="margin-bottom:16px;color:var(--ink2);line-height:1.7">每个 Agent 都实现了 fallback 降级机制，确保在 LLM 调用失败或异常时系统仍能运行。</p>
-      <div class="click-item" style="border-left:3px solid var(--accent)" onclick="toggleItem(this)">
-        <div class="item-title">降级触发条件 <span class="arrow-icon">▶</span></div>
-        <div class="item-detail">
-          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-            <div>① 网络异常：LLM API 调用超时或网络不可达</div>
-            <div>② 认证失败：API Key 缺失或无效</div>
-            <div>③ 格式异常：LLM 返回非 JSON 或字段缺失</div>
-            <div>④ 服务不可用：大模型服务暂时宕机</div>
-          </div>
-        </div>
-      </div>
-      <div class="click-item" style="border-left:3px solid var(--coral);margin-top:10px" onclick="toggleItem(this)">
-        <div class="item-title">各 Agent 降级行为 <span class="arrow-icon">▶</span></div>
-        <div class="item-detail">
-          <table class="detail-table">
-            <tr><th>Agent</th><th>降级行为</th></tr>
-            <tr><td>Router</td><td>默认返回 <code>direct</code>，跳过后续条件 Agent</td></tr>
-            <tr><td>Emotion</td><td>返回保守的中性情绪（confidence: 0.5）</td></tr>
-            <tr><td>Sarcasm</td><td>默认不检测到讽刺（is_sarcasm: false）</td></tr>
-            <tr><td>Mix</td><td>默认不检测到混合情绪（is_mixed: false）</td></tr>
-            <tr><td>Judge</td><td>直接使用 Emotion Agent 结果（纯规则模式）</td></tr>
-            <tr><td>Chat</td><td>返回通用安抚回复</td></tr>
-            <tr><td>Profile</td><td>返回空画像（profile: ""）</td></tr>
-          </table>
-        </div>
-      </div>
-      <div class="click-item" style="border-left:3px solid var(--violet);margin-top:10px" onclick="toggleItem(this)">
-        <div class="item-title">设计原则 <span class="arrow-icon">▶</span></div>
-        <div class="item-detail">每个 Agent 的 fallback 都返回"安全默认值"——不报错、不崩溃、给出最保守的合理输出，保证流水线始终能产出结果。Judge 的 fallback 有双层兜底：先尝试纯规则裁决，规则也失败才用 Emotion Agent 结果。</div>
       </div>
     </div>`,
 

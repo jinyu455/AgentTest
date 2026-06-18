@@ -1122,16 +1122,24 @@ function resetConversation() {
   els.messageInput.focus();
 }
 
-function normalizeApiPath(path) {
-  if (typeof path !== "string") {
+function getSafeApiBase(apiBase) {
+  const candidate = typeof apiBase === "string" && apiBase.trim() ? apiBase.trim() : DEFAULT_API_BASE;
+  const baseUrl = new URL(candidate, window.location.origin);
+
+  if (!ALLOWED_API_ORIGINS.has(baseUrl.origin)) {
+    return new URL(DEFAULT_API_BASE);
+  }
+
+  return baseUrl;
+}
+
+function buildSafeApiUrl(apiBase, path) {
+  if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) {
     throw new Error("Invalid API path");
   }
 
-  if (!path.startsWith("/") || path.startsWith("//")) {
-    throw new Error("Invalid API path");
-  }
-
-  return path;
+  const baseUrl = getSafeApiBase(apiBase);
+  return new URL(path, baseUrl.origin).toString();
 }
 
 async function apiFetch(path, options = {}) {
@@ -1146,9 +1154,9 @@ async function apiFetch(path, options = {}) {
     requestHeaders.Authorization = `Bearer ${state.auth.token}`;
   }
 
-  const safePath = normalizeApiPath(path);
+  const safeUrl = buildSafeApiUrl(state.apiBase, path);
 
-  const response = await fetch(safePath, {
+  const response = await fetch(safeUrl, {
     ...fetchOptions,
     headers: requestHeaders,
   });

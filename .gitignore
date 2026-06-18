@@ -78,6 +78,8 @@ docs/测试计划文档.docx
 docs/概要设计文档.docx
 docs/软件计划文档.docx
 docs/需求分析文档.docx
+*.ppt
+*.pptx
 
 test_data/
 benchmark/
