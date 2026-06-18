@@ -1055,7 +1055,7 @@ async function loadConversations() {
     state.conversationsStatus = "ready";
     renderConversationList();
 
-    if ( !state.messages.length ) {
+    if ( !state.messages.length && state.conversationId ) {
       const savedConversation = state.conversations.find( ( conversation ) => conversation.id === state.conversationId );
       const conversationToOpen = savedConversation || state.conversations[ 0 ];
       if ( conversationToOpen ) {
